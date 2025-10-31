@@ -100,8 +100,8 @@ export default function BrowsePage() {
               <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
               <div className="flex items-center justify-between">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-primary">₹{item.price}</span>
-                  <span className="text-sm text-muted-foreground line-through">₹{item.originalPrice}</span>
+                  <span className="text-2xl font-bold text-primary">${item.price}</span>
+                  <span className="text-sm text-muted-foreground line-through">${item.originalPrice}</span>
                 </div>
                 <Button size="sm">Order Now</Button>
               </div>

@@ -97,7 +97,7 @@ export default function RecommendationsPage() {
                   <CardContent className="space-y-4">
                     <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-xl font-bold text-primary">₹{item.price}</span>
+                      <span className="text-xl font-bold text-primary">${item.price}</span>
                       <Button size="sm">Order</Button>
                     </div>
                   </CardContent>

@@ -57,7 +57,7 @@ export default function OwnerDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹64,800</div>
+            <div className="text-2xl font-bold">$64,800</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-primary">+12.5%</span> from last week
             </p>
@@ -206,7 +206,7 @@ export default function OwnerDashboard() {
                         <Badge variant={item.status === "low" ? "destructive" : "secondary"}>
                           {item.stock} in stock
                         </Badge>
-                        <span className="text-sm text-muted-foreground">₹{item.price}</span>
+                        <span className="text-sm text-muted-foreground">${item.price}</span>
                       </div>
                     </div>
                     <div className="flex gap-2">
