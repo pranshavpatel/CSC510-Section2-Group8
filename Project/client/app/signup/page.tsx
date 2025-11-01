@@ -69,7 +69,7 @@ export default function SignupPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
             <Leaf className="h-7 w-7 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold">Join Mood2Food</h1>
+          <h1 className="text-2xl font-bold">Join VibeDish</h1>
           <p className="text-sm text-muted-foreground text-center">Create an account to get started</p>
         </div>
 
