@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Updated color scheme for Mood2Food - eco-friendly green primary with warm accents */
+  /* Updated color scheme for VibeDish - eco-friendly green primary with warm accents */
   --background: oklch(0.99 0.005 120);
   --foreground: oklch(0.15 0.01 140);
   --card: oklch(1 0 0);

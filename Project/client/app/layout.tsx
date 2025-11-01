@@ -12,7 +12,7 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Mood2Food - Sustainable Food Delivery",
+  title: "VibeDish - Sustainable Food Delivery",
   description: "Mood-based meal recommendations with surplus restaurant meals at discounted prices",
   generator: "v0.app",
 }

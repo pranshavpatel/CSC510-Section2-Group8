@@ -25,7 +25,7 @@ export function Header() {
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
             <Leaf className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-foreground">Mood2Food</span>
+          <span className="text-foreground">VibeDish</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
