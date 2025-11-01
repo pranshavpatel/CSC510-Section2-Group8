@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi import Request, APIRouter
 import requests, base64, json, time
 from urllib.parse import urlencode
+from models.models import Auth
 
 load_dotenv()
 
@@ -30,11 +31,12 @@ def spotify_login():
         "scope": SPOTIFY_SCOPES,
     }
     auth_url = f"https://accounts.spotify.com/authorize?{urlencode(params)}"
-    return {"URL":RedirectResponse(auth_url)}
+    return RedirectResponse(auth_url)
 
 @router.get("/callback")
-def spotify_callback(request: Request):
-    code = request.query_params.get("code")
+def spotify_callback(code: str):
+    # code = request.query_params.get("code")
+    # code = code
     if not code:
         return JSONResponse({"error": "Missing code"}, status_code=400)
 
