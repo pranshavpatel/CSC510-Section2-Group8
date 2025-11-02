@@ -14,6 +14,8 @@ const customJestConfig = {
   collectCoverageFrom: [
     'components/map-view.tsx',
     'app/map/page.tsx',
+    'app/browse/page.tsx',
+    'app/browse/loading.tsx',
     '!**/*.d.ts',
     '!**/node_modules/**',
     '!**/.next/**',
