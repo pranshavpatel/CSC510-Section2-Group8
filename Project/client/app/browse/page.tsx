@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -29,9 +30,13 @@ interface Meal {
   created_at: string
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
 
 export default function BrowsePage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const restaurantIdFromUrl = searchParams.get('restaurant')
+  
   const [view, setView] = useState<"restaurants" | "meals">("restaurants")
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null)
 
@@ -53,6 +58,21 @@ export default function BrowsePage() {
       fetchMeals()
     }
   }, [view])
+
+  // Handle restaurant selection from URL parameter
+  useEffect(() => {
+    if (restaurantIdFromUrl && restaurants.length > 0) {
+      const restaurant = restaurants.find(r => r.id === restaurantIdFromUrl)
+      if (restaurant && selectedRestaurant?.id !== restaurant.id) {
+        handleRestaurantClick(restaurant)
+      }
+    } else if (!restaurantIdFromUrl && view === "meals") {
+      // Reset to restaurants view when URL parameter is removed
+      setView("restaurants")
+      setSelectedRestaurant(null)
+      setSearchQuery("")
+    }
+  }, [restaurantIdFromUrl, restaurants])
 
   const fetchRestaurants = async () => {
     setLoading(true)
@@ -93,9 +113,15 @@ export default function BrowsePage() {
   }
 
   const handleBackToRestaurants = () => {
-    setView("restaurants")
-    setSelectedRestaurant(null)
-    setSearchQuery("")
+    // If we came from another page (e.g., map), navigate to clean browse page
+    if (restaurantIdFromUrl) {
+      router.push('/browse')
+    } else {
+      // Otherwise just reset the view state
+      setView("restaurants")
+      setSelectedRestaurant(null)
+      setSearchQuery("")
+    }
   }
 
   // Filter restaurants by search

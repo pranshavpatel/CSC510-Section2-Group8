@@ -12,7 +12,7 @@ async def list_restaurants(
     limit: int = Query(default=50, le=100),
 ):
     q = text("""
-        select id, name, address
+        select id, name, address, latitudes, longitudes
         from restaurants
         order by created_at desc
         limit :limit
