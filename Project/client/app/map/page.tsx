@@ -21,7 +21,7 @@ export default function MapPage() {
   useEffect(() => {
     async function fetchRestaurants() {
       try {
-        const response = await fetch('http://localhost:8000/catalog/restaurants')
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL!}/catalog/restaurants`)
         if (!response.ok) {
           throw new Error('Failed to fetch restaurants')
         }

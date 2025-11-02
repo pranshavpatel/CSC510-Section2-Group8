@@ -5,6 +5,7 @@
       "dom.iterable",
       "esnext"
     ],
+    "types": ["jest", "@testing-library/jest-dom"],
     "allowJs": true,
     "target": "ES6",
     "skipLibCheck": true,
