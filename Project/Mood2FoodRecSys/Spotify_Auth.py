@@ -35,7 +35,7 @@ def spotify_login():
         "scope": SPOTIFY_SCOPES,
     }
     auth_url = f"https://accounts.spotify.com/authorize?{urlencode(params)}"
-    return RedirectResponse(auth_url)
+    return {"URL": RedirectResponse(auth_url)}
 
 @router.get("/callback")
 def spotify_callback(code: str):
