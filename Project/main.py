@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from VibeDishRecSys.Spotify_Auth import router as spotify_router
+from Mood2FoodRecSys.Spotify_Auth import router as spotify_router
 from database.database import database
 
 # Initialize FastAPI application
