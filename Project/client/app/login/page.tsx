@@ -57,7 +57,7 @@ export default function LoginPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
             <Leaf className="h-7 w-7 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold">Welcome to Mood2Food</h1>
+          <h1 className="text-2xl font-bold">Welcome to VibeDish</h1>
           <p className="text-sm text-muted-foreground text-center">Sign in to start saving food and money</p>
         </div>
 

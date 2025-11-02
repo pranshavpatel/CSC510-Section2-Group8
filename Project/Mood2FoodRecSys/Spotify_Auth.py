@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi import Request, APIRouter
 import requests, base64, json, time
 from urllib.parse import urlencode
-from models.models import Auth
+# from models.models import Auth
 
 load_dotenv()
 

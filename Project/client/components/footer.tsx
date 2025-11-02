@@ -12,7 +12,7 @@ export function Footer() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                 <Leaf className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span>Mood2Food</span>
+              <span>VibeDish</span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Sustainable food delivery with mood-based recommendations
@@ -77,7 +77,7 @@ export function Footer() {
         </div>
 
         <div className="mt-8 pt-8 border-t border-border/40 text-center text-sm text-muted-foreground">
-          <p>&copy; 2025 Mood2Food. All rights reserved.</p>
+          <p>&copy; 2025 VibeDish. All rights reserved.</p>
         </div>
       </div>
     </footer>

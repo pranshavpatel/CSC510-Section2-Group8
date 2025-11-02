@@ -1,4 +1,4 @@
-// Mock data for Mood2Food MVP
+// Mock data for VibeDish MVP
 
 export interface SurplusItem {
   id: number

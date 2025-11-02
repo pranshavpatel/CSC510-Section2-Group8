@@ -24,7 +24,7 @@ async def list_restaurants(
 async def list_meals(
     db: AsyncSession = Depends(get_db),
     surplus_only: bool = Query(default=True),
-    restaurant_id: str | None = None,
+    restaurant_id: str or None = None,
     limit: int = Query(default=50, le=100),
 ):
     base = """
