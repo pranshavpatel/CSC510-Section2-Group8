@@ -1,85 +1,140 @@
 # app/auth.py
-import httpx
-from jose import jwt, JWTError
-from fastapi import Header, HTTPException
-from functools import lru_cache
 from typing import Any, Dict, Optional
+
+import httpx
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import jwt, JWTError
 from .config import settings
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
-class AuthError(HTTPException):
-    def __init__(self, detail: str):
-        super().__init__(status_code=401, detail=detail)
+security = HTTPBearer()
 
-@lru_cache(maxsize=1)
-def get_jwks() -> Dict[str, Any]:
-    if not settings.SUPABASE_JWKS_URL:
-        return {"keys": []}
-    r = httpx.get(settings.SUPABASE_JWKS_URL, timeout=10.0)
-    r.raise_for_status()
+SUPABASE_USERINFO_URL = settings.SUPABASE_URL.rstrip("/") + "/auth/v1/user"
+
+
+async def _get_user_from_supabase(token: str) -> Dict[str, Any]:
+    """
+    Remote-verify the token by calling Supabase.
+    This bypasses the whole "HS256 vs EC vs JWKS" mess.
+    """
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "apikey": settings.SUPABASE_ANON_KEY,
+    }
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        r = await client.get(SUPABASE_USERINFO_URL, headers=headers)
+
+    if r.status_code != 200:
+        # bubble up error
+        try:
+            data = r.json()
+        except Exception:
+            data = {"message": r.text}
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Supabase auth failed: {data}",
+        )
+
     return r.json()
 
-def _decode_rs256(token: str) -> Dict[str, Any]:
-    jwks = get_jwks()
-    unverified = jwt.get_unverified_header(token)
-    kid = unverified.get("kid")
-    key = None
-    for k in jwks.get("keys", []):
-        if k.get("kid") == kid:
-            key = k
-            break
-    if not key:
-        raise AuthError("RS256: JWKS key not found for this token")
-    return jwt.decode(
-        token,
-        key,
-        algorithms=[key.get("alg", "RS256")],
-        options={"verify_aud": False},
-    )
 
-def _decode_hs256(token: str) -> Dict[str, Any]:
+def _try_decode_local_hs256(token: str) -> Optional[Dict[str, Any]]:
+    """
+    Try to decode using legacy HS256 secret (for your earlier hand-made tokens).
+    If it fails, just return None so we can fall back to remote check.
+    """
     if not settings.SUPABASE_JWT_SECRET:
-        raise AuthError("HS256: SUPABASE_JWT_SECRET not configured in .env")
-    return jwt.decode(
-        token,
-        settings.SUPABASE_JWT_SECRET,
-        algorithms=["HS256"],
-        options={"verify_aud": False},
-    )
-
-async def current_user(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
-    if not authorization:
-        raise AuthError("Missing Authorization header")
-    if not authorization.lower().startswith("bearer "):
-        raise AuthError("Authorization must be Bearer <token>")
-
-    token = authorization.split(" ", 1)[1].strip()
-
-    # 👉 basic JWT shape check
-    if token.count(".") != 2:
-        raise AuthError("Token is not in JWT format (expect 3 parts: header.payload.signature)")
-
-    # read alg from header
+        return None
     try:
-        unverified = jwt.get_unverified_header(token)
-    except JWTError as e:
-        # this is the exact error you’re seeing
-        raise AuthError(f"Invalid JWT header: {e}")
+        claims = jwt.decode(
+            token,
+            settings.SUPABASE_JWT_SECRET,
+            algorithms=["HS256"],
+            audience="authenticated",
+        )
+        return claims
+    except JWTError:
+        return None
 
-    alg = unverified.get("alg")
 
-    if alg == "HS256":
-        claims = _decode_hs256(token)
-    elif alg == "RS256":
-        claims = _decode_rs256(token)
-    else:
-        raise AuthError(f"Unsupported alg: {alg}")
+async def current_user(
+    creds: HTTPAuthorizationCredentials = Depends(security),
+):
+    token = creds.credentials
 
-    sub = claims.get("sub") or claims.get("user_id")
-    if not sub:
-        raise AuthError("Token decoded but no sub/user_id in payload")
+    # 1) try local HS256 (for your old dev tokens)
+    claims = _try_decode_local_hs256(token)
+    if claims is not None:
+        sub = claims.get("sub")
+        if not sub:
+            raise HTTPException(status_code=401, detail="JWT missing sub")
+        return {
+            "id": str(sub),
+            "email": claims.get("email"),
+            "role": claims.get("role"),
+            "raw": claims,
+            "source": "local-hs256",
+        }
+
+    # 2) fallback: ask Supabase directly
+    userinfo = await _get_user_from_supabase(token)
+
+    # Supabase returns {id, email, ...}
+    uid = userinfo.get("id") or userinfo.get("sub")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Supabase user has no id")
 
     return {
-        "id": sub,
-        "email": claims.get("email"),
-        "claims": claims,
+        "id": str(uid),
+        "email": userinfo.get("email"),
+        "role": userinfo.get("role", "authenticated"),
+        "raw": userinfo,
+        "source": "supabase-remote",
     }
+
+async def ensure_app_user(
+    db:AsyncSession,
+    *,
+    user_id:str,
+    email:str,
+    name:str|None=None,
+):
+    # 1) try by id
+    q_by_id=text("select id from users where id=:uid")
+    res=await db.execute(q_by_id, {"uid":user_id})
+    row=res.mappings().first()
+    if row:
+        # just update basic fields
+        upd=text("""
+            update users
+            set email=:email,
+                name = coalesce(:name, name)
+            where id=:uid
+        """)
+        await db.execute(upd, {"uid":user_id,"email":email,"name":name})
+        return
+
+    # 2) try by email (old row before we synced with supabase)
+    q_by_email=text("select id from users where email=:email")
+    res2=await db.execute(q_by_email, {"email":email})
+    row2=res2.mappings().first()
+    if row2:
+        # relink this app user to the real supabase id
+        # (this is the important part)
+        upd=text("""
+            update users
+            set id=:uid,
+                name = coalesce(:name, name)
+            where email=:email
+        """)
+        await db.execute(upd, {"uid":user_id, "email":email, "name":name})
+        return
+
+    # 3) neither exists → clean insert
+    ins=text("""
+        insert into users (id, email, name, role)
+        values (:uid, :email, :name, 'customer')
+    """)
+    await db.execute(ins, {"uid":user_id, "email":email, "name":name})
