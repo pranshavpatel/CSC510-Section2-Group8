@@ -14,42 +14,21 @@ async def create_order(
     db: AsyncSession = Depends(get_db),
     user=Depends(current_user),
 ):
-    """
-    Expects:
-    {
-      "restaurant_id": "...",
-      "items": [
-        {"meal_id": "...", "qty": 2},
-        ...
-      ]
-    }
-    - user_id is taken from token (customer)
-    - we will:
-      1) create order
-      2) for each item:
-         - check meal exists
-         - check surplus
-         - compute line price = surplus_price * qty
-         - decrement surplus
-      3) update order total
-    """
     restaurant_id = payload.get("restaurant_id")
     items: List[dict] = payload.get("items") or []
     if not restaurant_id or not items:
         raise HTTPException(status_code=400, detail="restaurant_id and items required")
 
-    # 1) create order (pending) for current user
     create_order_q = text("""
         insert into orders (user_id, restaurant_id, status, total)
         values (:user_id, :restaurant_id, 'pending', 0)
         returning id
     """)
     res = await db.execute(create_order_q, {
-        "user_id": user["id"],
+        "user_id": str(user["id"]).strip(),
         "restaurant_id": restaurant_id,
     })
-    order_row = res.mappings().first()
-    order_id = order_row["id"]
+    order_id = res.mappings().first()["id"]
 
     total = 0.0
 
@@ -59,7 +38,6 @@ async def create_order(
         if not meal_id or qty <= 0:
             raise HTTPException(status_code=400, detail="each item needs meal_id and positive qty")
 
-        # get meal info
         meal_q = text("""
             select id, surplus_qty, surplus_price, base_price
             from meals
@@ -76,7 +54,6 @@ async def create_order(
         line_price = float(meal["surplus_price"]) * qty
         total += line_price
 
-        # insert order_item
         insert_item_q = text("""
             insert into order_items (order_id, meal_id, qty, price)
             values (:order_id, :meal_id, :qty, :price)
@@ -88,7 +65,6 @@ async def create_order(
             "price": line_price,
         })
 
-        # decrement surplus
         update_meal_q = text("""
             update meals
             set surplus_qty = surplus_qty - :qty
@@ -96,7 +72,6 @@ async def create_order(
         """)
         await db.execute(update_meal_q, {"qty": qty, "mid": meal_id})
 
-    # update order total
     upd_order_q = text("""
         update orders
         set total = :total
@@ -107,28 +82,25 @@ async def create_order(
         "total": total,
         "oid": order_id,
     })
-    final_order = final_res.mappings().first()
-
     await db.commit()
-    return dict(final_order)
+    return dict(final_res.mappings().first())
 
 
 @router.get("/mine")
-async def my_orders(
+async def list_my_orders(
     db: AsyncSession = Depends(get_db),
     user=Depends(current_user),
 ):
+    user_id = str(user["id"]).strip()
     q = text("""
-        select o.id, o.restaurant_id, o.status, o.total, o.created_at,
-               r.name as restaurant_name
-        from orders o
-        join restaurants r on o.restaurant_id = r.id
-        where o.user_id = :uid
-        order by o.created_at desc
-        limit 50
+        select id, restaurant_id, status, total, created_at
+        from orders
+        where user_id = :uid
+        order by created_at desc
     """)
-    rows = (await db.execute(q, {"uid": user["id"]})).mappings().all()
-    return [dict(r) for r in rows]
+    res = await db.execute(q, {"uid": user_id})
+    rows = [dict(r) for r in res.mappings().all()]
+    return rows
 
 
 @router.get("/{order_id}")
@@ -149,14 +121,12 @@ async def get_order(
     if not row:
         raise HTTPException(status_code=404, detail="order not found")
 
-    # normalize ids
     db_user_id = str(row["user_id"]).strip() if row["user_id"] is not None else ""
-    current_id = str(user["id"]).strip() if user.get("id") is not None else ""    
+    current_id = str(user["id"]).strip() if user.get("id") is not None else ""
 
     if db_user_id != current_id:
         raise HTTPException(status_code=403, detail="not your order")
 
-    # fetch items
     items_q = text("""
         select oi.id, oi.meal_id, m.name as meal_name, oi.qty, oi.price
         from order_items oi
@@ -172,13 +142,13 @@ async def get_order(
         "items": items,
     }
 
+
 @router.patch("/{order_id}/cancel")
 async def cancel_order(
     order_id: str,
     db: AsyncSession = Depends(get_db),
     user=Depends(current_user),
 ):
-    # lock the order
     order_q = text("""
         select id, user_id, status
         from orders
@@ -199,7 +169,6 @@ async def cancel_order(
     if order["status"] != "pending":
         raise HTTPException(status_code=400, detail="cannot cancel after it is accepted")
 
-    # restore surplus
     items_q = text("""
         select meal_id, qty
         from order_items
