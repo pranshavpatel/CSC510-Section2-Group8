@@ -17,14 +17,16 @@ async def get_me(db:AsyncSession=Depends(get_db),user=Depends(current_user)):
         raise HTTPException(status_code=404,detail="user not found")
     return dict(row)
 
-# optional: let user update name
+
 @router.patch("")
-async def update_me(payload:dict,db:AsyncSession=Depends(get_db),user=Depends(current_user)):
-    name=payload.get("name")
-    if not name:
-        raise HTTPException(status_code=400,detail="name required")
-    q=text("update users set name=:name where id=:uid returning id,email,name,role")
-    res=await db.execute(q,{"name":name,"uid":user["id"]})
-    row=res.mappings().first()
+async def patch_me(payload: dict, db: AsyncSession = Depends(get_db), user=Depends(current_user)):
+    q = text("""
+      update users
+      set name = COALESCE(:name, name)
+      where id=:uid
+      returning id, email, name, role
+    """)
+    res = await db.execute(q, {"uid": user["id"], "name": payload.get("name")})
+    row = res.mappings().first()
     await db.commit()
     return dict(row)
