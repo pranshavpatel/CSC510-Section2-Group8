@@ -6,9 +6,16 @@ from datetime import datetime
 from collections import defaultdict
 from groq import AsyncGroq
 from Mood2FoodRecSys.RecSys_Prompts import system_prompt_to_extract_moods, system_prompt_food_rec
+from database.database import database
+from fastapi import APIRouter
 
 load_dotenv()
 
+router = APIRouter(
+    prefix="/recsys",
+    tags=["mood based recommendation system"],
+    responses={404: {"description": "Not found"}},
+)
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")   
 
@@ -164,6 +171,16 @@ async def recommend_food_based_on_mood(top_moods, preference):
 
 
 
+async def fetch_data_from_db(restaurant_id):
+
+
+    query = "SELECT name, tags from meals WHERE restaurant_id =:restaurant_id"
+    values = {"restaurant_id": restaurant_id}
+
+    response = await database.fetch_all(query=query, values=values)
+
+    print(type(response))
+    return {"data": response}
 
 
 
