@@ -29,40 +29,51 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not email or not password:
         raise HTTPException(status_code=400, detail="email and password required")
 
-    # 1) get access token from supabase
-    async with httpx.AsyncClient() as client:
+    # 1) hit supabase auth
+    async with httpx.AsyncClient(timeout=10.0) as client:
         r=await client.post(
             f"{settings.SUPABASE_URL}/auth/v1/token?grant_type=password",
             headers={
-                "apikey":settings.SUPABASE_ANON_KEY,
-                "Content-Type":"application/json",
+                "apikey": settings.SUPABASE_ANON_KEY,
+                "Authorization": f"Bearer {settings.SUPABASE_ANON_KEY}",
+                "Content-Type": "application/json",
             },
-            json={"email":email,"password":password},
+            json={"email": email, "password": password},
         )
-    if r.status_code>=400:
-        raise HTTPException(status_code=400, detail="invalid credentials")
 
-    token_data=r.json()           # has access_token, refresh_token, user?
-    access_token=token_data["access_token"]
+    if r.status_code >= 400:
+        # try to show the real supabase error
+        try:
+            err = r.json()
+        except Exception:
+            err = {"message": r.text}
+        raise HTTPException(
+            status_code=400,
+            detail={"from":"supabase","status":r.status_code, **err},
+        )
 
-    # 2) fetch user info from supabase using that token
-    async with httpx.AsyncClient() as client:
-        me=await client.get(
+    token_data = r.json()
+    access_token = token_data["access_token"]
+
+    # 2) fetch /user from supabase
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        me = await client.get(
             f"{settings.SUPABASE_URL}/auth/v1/user",
             headers={
-                "apikey":settings.SUPABASE_ANON_KEY,
-                "Authorization":f"Bearer {access_token}",
+                "apikey": settings.SUPABASE_ANON_KEY,
+                "Authorization": f"Bearer {access_token}",
             },
         )
-    if me.status_code>=400:
+
+    if me.status_code >= 400:
         raise HTTPException(status_code=400, detail="could not fetch user from supabase")
 
-    me_data=me.json()
-    user_id=me_data["id"]
-    user_email=me_data["email"]
-    user_name=me_data.get("user_metadata",{}).get("name")  # may be None
+    me_data = me.json()
+    user_id = me_data["id"]
+    user_email = me_data["email"]
+    user_name = me_data.get("user_metadata", {}).get("name")
 
-    # 3) make sure the user exists in our app db
+    # 3) ensure local user
     await ensure_app_user(
         db,
         user_id=user_id,
@@ -71,7 +82,6 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
     )
     await db.commit()
 
-    # 4) return exactly what frontend expects
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -82,6 +92,7 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
             "name": user_name,
         },
     }
+
 
 
 @router.post("/signup")
