@@ -10,6 +10,7 @@ import { useAuth } from "@/context/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { Leaf } from "lucide-react"
 import Link from "next/link"
+import { hashPassword } from "@/lib/crypto-utils"
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -56,7 +57,9 @@ export default function LoginPage() {
 
     setIsLoading(true)
     try {
-      await login(email, password)
+      // Hash the password before sending to backend
+      const hashedPassword = await hashPassword(password)
+      await login(email, hashedPassword)
       toast({
         title: "Success",
         description: "Logged in successfully",

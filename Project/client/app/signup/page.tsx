@@ -10,6 +10,7 @@ import { useAuth } from "@/context/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { Leaf } from "lucide-react"
 import Link from "next/link"
+import { hashPassword } from "@/lib/crypto-utils"
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -67,7 +68,9 @@ export default function SignupPage() {
 
     setIsLoading(true)
     try {
-      await signup(email, password, name)
+      // Hash the password before sending to backend
+      const hashedPassword = await hashPassword(password)
+      await signup(email, hashedPassword, name)
       toast({
         title: "Success",
         description: "Account created successfully. Please login to continue.",
