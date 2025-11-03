@@ -6,11 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/context/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { Leaf } from "lucide-react"
 import Link from "next/link"
+import { hashPassword } from "@/lib/crypto-utils"
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -20,7 +22,12 @@ export default function LoginPage() {
   const router = useRouter()
   const { toast } = useToast()
 
-  const handleLogin = async (role: "customer" | "owner") => {
+  const validateEmail = (email: string): boolean => {
+    return EMAIL_REGEX.test(email)
+  }
+
+  const handleLogin = async () => {
+    // Validation
     if (!email || !password) {
       toast({
         title: "Error",
@@ -30,18 +37,38 @@ export default function LoginPage() {
       return
     }
 
+    if (!validateEmail(email)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsLoading(true)
     try {
-      await login(email, password, role)
+      // Hash the password before sending to backend
+      const hashedPassword = await hashPassword(password)
+      await login(email, hashedPassword)
       toast({
         title: "Success",
         description: "Logged in successfully",
       })
-      router.push(role === "owner" ? "/owner" : "/")
+      router.push("/")
     } catch (error) {
       toast({
         title: "Error",
-        description: "Login failed. Please try again.",
+        description: error instanceof Error ? error.message : "Login failed. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -62,98 +89,42 @@ export default function LoginPage() {
         </div>
 
         {/* Login Form */}
-        <Tabs defaultValue="customer" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="customer">Customer</TabsTrigger>
-            <TabsTrigger value="owner">Restaurant Owner</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="customer">
-            <Card>
-              <CardHeader>
-                <CardTitle>Customer Login</CardTitle>
-                <CardDescription>Access your account to browse deals and get recommendations</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="customer-email">Email</Label>
-                  <Input
-                    id="customer-email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="customer-password">Password</Label>
-                  <Input
-                    id="customer-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                <Button className="w-full" onClick={() => handleLogin("customer")} disabled={isLoading}>
-                  {isLoading ? "Signing in..." : "Sign In"}
-                </Button>
-                <p className="text-xs text-center text-muted-foreground">
-                  Don't have an account?{" "}
-                  <Link href="/signup" className="text-primary hover:underline">
-                    Sign up
-                  </Link>
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="owner">
-            <Card>
-              <CardHeader>
-                <CardTitle>Restaurant Owner Login</CardTitle>
-                <CardDescription>Manage your surplus inventory and track analytics</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="owner-email">Email</Label>
-                  <Input
-                    id="owner-email"
-                    type="email"
-                    placeholder="restaurant@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="owner-password">Password</Label>
-                  <Input
-                    id="owner-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                <Button className="w-full" onClick={() => handleLogin("owner")} disabled={isLoading}>
-                  {isLoading ? "Signing in..." : "Sign In"}
-                </Button>
-                <p className="text-xs text-center text-muted-foreground">
-                  Want to join as a partner?{" "}
-                  <Link href="/signup" className="text-primary hover:underline">
-                    Register your restaurant
-                  </Link>
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* Demo Credentials */}
-        <Card className="bg-muted/50">
-          <CardContent className="pt-6">
-            <p className="text-xs text-muted-foreground text-center">
-              <strong>Demo:</strong> Use any email/password to test the app
+        <Card>
+          <CardHeader>
+            <CardTitle>Customer Login</CardTitle>
+            <CardDescription>Access your account to browse deals and get recommendations</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+              />
+            </div>
+            <Button className="w-full" onClick={handleLogin} disabled={isLoading}>
+              {isLoading ? "Signing in..." : "Sign In"}
+            </Button>
+            <p className="text-xs text-center text-muted-foreground">
+              Don't have an account?{" "}
+              <Link href="/signup" className="text-primary hover:underline">
+                Sign up
+              </Link>
             </p>
           </CardContent>
         </Card>

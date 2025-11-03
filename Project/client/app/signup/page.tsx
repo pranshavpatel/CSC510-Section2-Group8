@@ -6,26 +6,52 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/context/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { Leaf } from "lucide-react"
 import Link from "next/link"
+import { hashPassword } from "@/lib/crypto-utils"
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function SignupPage() {
+  const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { login } = useAuth()
+  const { signup } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
 
-  const handleSignup = async (role: "customer" | "owner") => {
-    if (!email || !password || !confirmPassword) {
+  const validateEmail = (email: string): boolean => {
+    return EMAIL_REGEX.test(email)
+  }
+
+  const handleSignup = async () => {
+    // Validation
+    if (!name || !email || !password || !confirmPassword) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!validateEmail(email)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long",
         variant: "destructive",
       })
       return
@@ -42,18 +68,18 @@ export default function SignupPage() {
 
     setIsLoading(true)
     try {
-      // Mock signup - in production, this would call an API
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      await login(email, password, role)
+      // Hash the password before sending to backend
+      const hashedPassword = await hashPassword(password)
+      await signup(email, hashedPassword, name)
       toast({
         title: "Success",
-        description: "Account created successfully",
+        description: "Account created successfully. Please login to continue.",
       })
-      router.push(role === "owner" ? "/owner" : "/")
+      router.push("/login")
     } catch (error) {
       toast({
         title: "Error",
-        description: "Signup failed. Please try again.",
+        description: error instanceof Error ? error.message : "Signup failed. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -74,112 +100,64 @@ export default function SignupPage() {
         </div>
 
         {/* Signup Form */}
-        <Tabs defaultValue="customer" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="customer">Customer</TabsTrigger>
-            <TabsTrigger value="owner">Restaurant Owner</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="customer">
-            <Card>
-              <CardHeader>
-                <CardTitle>Create Customer Account</CardTitle>
-                <CardDescription>Start discovering mood-based meal recommendations</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="customer-email">Email</Label>
-                  <Input
-                    id="customer-email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="customer-password">Password</Label>
-                  <Input
-                    id="customer-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="customer-confirm">Confirm Password</Label>
-                  <Input
-                    id="customer-confirm"
-                    type="password"
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                </div>
-                <Button className="w-full" onClick={() => handleSignup("customer")} disabled={isLoading}>
-                  {isLoading ? "Creating account..." : "Create Account"}
-                </Button>
-                <p className="text-xs text-center text-muted-foreground">
-                  Already have an account?{" "}
-                  <Link href="/login" className="text-primary hover:underline">
-                    Sign in
-                  </Link>
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="owner">
-            <Card>
-              <CardHeader>
-                <CardTitle>Register Your Restaurant</CardTitle>
-                <CardDescription>Join our platform to reduce food waste and increase revenue</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="owner-email">Restaurant Email</Label>
-                  <Input
-                    id="owner-email"
-                    type="email"
-                    placeholder="restaurant@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="owner-password">Password</Label>
-                  <Input
-                    id="owner-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="owner-confirm">Confirm Password</Label>
-                  <Input
-                    id="owner-confirm"
-                    type="password"
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                </div>
-                <Button className="w-full" onClick={() => handleSignup("owner")} disabled={isLoading}>
-                  {isLoading ? "Creating account..." : "Register Restaurant"}
-                </Button>
-                <p className="text-xs text-center text-muted-foreground">
-                  Already registered?{" "}
-                  <Link href="/login" className="text-primary hover:underline">
-                    Sign in
-                  </Link>
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        <Card>
+          <CardHeader>
+            <CardTitle>Create Customer Account</CardTitle>
+            <CardDescription>Start discovering mood-based meal recommendations</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Full Name</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="John Doe"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Must be at least 6 characters</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+            <Button className="w-full" onClick={handleSignup} disabled={isLoading}>
+              {isLoading ? "Creating account..." : "Create Account"}
+            </Button>
+            <p className="text-xs text-center text-muted-foreground">
+              Already have an account?{" "}
+              <Link href="/login" className="text-primary hover:underline">
+                Sign in
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
