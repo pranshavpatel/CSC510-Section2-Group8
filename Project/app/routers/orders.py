@@ -8,6 +8,15 @@ from ..auth import current_user
 
 router = APIRouter()
 
+ALLOWED_TRANSITIONS = {
+    "pending":   {"accepted", "cancelled"},
+    "accepted":  {"preparing", "cancelled"},
+    "preparing": {"ready", "cancelled"},
+    "ready":     {"completed"},
+    "completed": set(),
+    "cancelled": set(),
+}
+
 # ---- helpers ---------------------------------------------------------------
 
 async def _append_status_event(db: AsyncSession, order_id: str, status: str):
@@ -16,6 +25,46 @@ async def _append_status_event(db: AsyncSession, order_id: str, status: str):
         VALUES (CAST(:oid AS uuid), CAST(:status AS order_status))
     """)
     await db.execute(ins, {"oid": order_id, "status": status})
+
+async def _is_user_staff_for_order(db: AsyncSession, user_id: str, order_id: str) -> bool:
+    q = text("""
+        select 1
+        from orders o
+        join restaurant_staff rs on rs.restaurant_id = o.restaurant_id
+        where o.id = :oid and rs.user_id = :uid
+        limit 1
+    """)
+    r = await db.execute(q, {"oid": order_id, "uid": user_id})
+    return r.scalar() == 1
+
+async def _transition_order(db: AsyncSession, order_id: str, target: str):
+    # Lock row and read current status
+    q = text("""
+        select id, status
+        from orders
+        where id = :oid
+        for update
+    """)
+    row = (await db.execute(q, {"oid": order_id})).mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="order not found")
+
+    cur = row["status"]
+    if target not in ALLOWED_TRANSITIONS.get(cur, set()):
+        raise HTTPException(status_code=400, detail=f"invalid transition {cur} -> {target}")
+
+    # Update status
+    upd = text("""
+        update orders
+        set status = :target
+        where id = :oid
+        returning id, user_id, restaurant_id, status, total, created_at
+    """)
+    new_row = (await db.execute(upd, {"oid": order_id, "target": target})).mappings().first()
+
+    # Append timeline event
+    await _append_status_event(db, order_id, target)
+    return dict(new_row)
 
 
 
@@ -280,3 +329,55 @@ async def cancel_order(
 
     await db.commit()
     return {"status": "cancelled", "order_id": order_id}
+
+@router.patch("/{order_id}/accept")
+async def accept_order(
+    order_id: str,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(current_user),
+):
+    # restaurant staff only
+    if not await _is_user_staff_for_order(db, str(user["id"]).strip(), order_id):
+        raise HTTPException(status_code=403, detail="not allowed")
+    out = await _transition_order(db, order_id, "accepted")
+    await db.commit()
+    return out
+
+
+@router.patch("/{order_id}/preparing")
+async def preparing_order(
+    order_id: str,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(current_user),
+):
+    if not await _is_user_staff_for_order(db, str(user["id"]).strip(), order_id):
+        raise HTTPException(status_code=403, detail="not allowed")
+    out = await _transition_order(db, order_id, "preparing")
+    await db.commit()
+    return out
+
+
+@router.patch("/{order_id}/ready")
+async def ready_order(
+    order_id: str,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(current_user),
+):
+    if not await _is_user_staff_for_order(db, str(user["id"]).strip(), order_id):
+        raise HTTPException(status_code=403, detail="not allowed")
+    out = await _transition_order(db, order_id, "ready")
+    await db.commit()
+    return out
+
+
+@router.patch("/{order_id}/complete")
+async def complete_order(
+    order_id: str,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(current_user),
+):
+    if not await _is_user_staff_for_order(db, str(user["id"]).strip(), order_id):
+        raise HTTPException(status_code=403, detail="not allowed")
+    out = await _transition_order(db, order_id, "completed")
+    await db.commit()
+    return out
