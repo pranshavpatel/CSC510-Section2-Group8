@@ -94,14 +94,26 @@ IMPORTANT INSTRUCTIONS:
 
 
 def generate_user_prompt(top_moods, preference, relevant_food_items):
-    available_items = {item["name"]: item["tags"] for item in relevant_food_items}
-
-    user_prompt = f"""
+    try:
+        if not relevant_food_items:
+            available_items = {}
+        else:
+            available_items = {item["name"]: item["tags"] for item in relevant_food_items if "name" in item and "tags" in item}
         
-        "moods": {top_moods},
-        "food_preference": {preference["food_preferences"]},
-        "other_preferences": {preference["other_preferences"] if preference["other_preferences"] else []}
-        "available_items": {available_items}
-    """
+        food_prefs = preference.get("food_preferences", []) if preference else []
+        other_prefs = preference.get("other_preferences", []) if preference else []
 
-    return user_prompt
+        user_prompt = f"""
+            
+            "moods": {top_moods},
+            "food_preference": {food_prefs},
+            "other_preferences": {other_prefs}
+            "available_items": {available_items}
+        """
+
+        return user_prompt
+        
+    except Exception as e:
+        import logging
+        logging.error(f"Error generating user prompt: {str(e)}")
+        return '"moods": [], "food_preference": [], "other_preferences": [], "available_items": {}'
