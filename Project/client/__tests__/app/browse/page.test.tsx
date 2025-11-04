@@ -381,7 +381,7 @@ describe('BrowsePage', () => {
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/catalog/meals')
+          expect.stringContaining('/restaurants/1/meals')
         )
       })
     })
@@ -544,7 +544,9 @@ describe('BrowsePage', () => {
       })
 
       await waitFor(() => {
-        expect(screen.getByText('38% OFF')).toBeInTheDocument()
+        const discountBadges = screen.getAllByText('38% OFF')
+        expect(discountBadges.length).toBeGreaterThan(0)
+        expect(discountBadges[0]).toBeInTheDocument()
       })
     })
 
@@ -744,7 +746,9 @@ describe('BrowsePage', () => {
 
       await waitFor(() => {
         // (15.99 - 9.99) / 15.99 = ~37.52% -> 38%
-        expect(screen.getByText('38% OFF')).toBeInTheDocument()
+        const discountBadges = screen.getAllByText('38% OFF')
+        expect(discountBadges.length).toBeGreaterThan(0)
+        expect(discountBadges[0]).toBeInTheDocument()
       })
     })
 

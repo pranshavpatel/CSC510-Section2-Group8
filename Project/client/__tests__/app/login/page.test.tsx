@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useRouter } from 'next/navigation'
 import LoginPage from '@/app/login/page'
 import { useAuth } from '@/context/auth-context'
-import { hashPassword } from '@/lib/crypto-utils'
+import { hashPasswordWithSalt } from '@/lib/crypto-utils'
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -17,7 +17,7 @@ jest.mock('@/context/auth-context', () => ({
 
 // Mock crypto utils
 jest.mock('@/lib/crypto-utils', () => ({
-  hashPassword: jest.fn(),
+  hashPasswordWithSalt: jest.fn(),
 }))
 
 // Mock toast
@@ -49,7 +49,7 @@ describe('LoginPage', () => {
       isAuthenticated: false,
       isLoading: false,
     })
-    ;(hashPassword as jest.Mock).mockResolvedValue('hashedpassword123')
+    ;(hashPasswordWithSalt as jest.Mock).mockResolvedValue('hashedpassword123')
   })
 
   describe('Initial Rendering', () => {
@@ -345,7 +345,7 @@ describe('LoginPage', () => {
       fireEvent.click(signInButton)
       
       await waitFor(() => {
-        expect(hashPassword).toHaveBeenCalledWith('password123')
+        expect(hashPasswordWithSalt).toHaveBeenCalledWith('password123', expect.any(String))
       })
     })
   })
@@ -364,7 +364,7 @@ describe('LoginPage', () => {
       fireEvent.click(signInButton)
       
       await waitFor(() => {
-        expect(hashPassword).toHaveBeenCalledWith('password123')
+        expect(hashPasswordWithSalt).toHaveBeenCalledWith('password123', expect.any(String))
       })
     })
 
@@ -645,7 +645,7 @@ describe('LoginPage', () => {
       fireEvent.click(signInButton)
       
       await waitFor(() => {
-        expect(hashPassword).toHaveBeenCalledWith('P@ssw0rd!')
+        expect(hashPasswordWithSalt).toHaveBeenCalledWith('P@ssw0rd!', expect.any(String))
       })
     })
 
@@ -657,6 +657,7 @@ describe('LoginPage', () => {
       fireEvent.change(emailInput, { target: { value: '  test@example.com  ' } })
       
       // Email input preserves whitespace as typed (trimming would be done at validation/submission)
+      // Note: email inputs may auto-trim in some browsers, so we check for trimmed value
       expect((emailInput as HTMLInputElement).value).toBe('test@example.com')
     })
   })
