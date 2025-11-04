@@ -52,13 +52,6 @@ export default function BrowsePage() {
     fetchRestaurants()
   }, [])
 
-  // Fetch meals when view changes to meals
-  useEffect(() => {
-    if (view === "meals" && meals.length === 0) {
-      fetchMeals()
-    }
-  }, [view])
-
   // Handle restaurant selection from URL parameter
   useEffect(() => {
     if (restaurantIdFromUrl && restaurants.length > 0) {
@@ -70,6 +63,7 @@ export default function BrowsePage() {
       // Reset to restaurants view when URL parameter is removed
       setView("restaurants")
       setSelectedRestaurant(null)
+      setMeals([])
       setSearchQuery("")
     }
   }, [restaurantIdFromUrl, restaurants])
@@ -90,11 +84,11 @@ export default function BrowsePage() {
     }
   }
 
-  const fetchMeals = async () => {
+  const fetchMeals = async (restaurantId: string) => {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${API_BASE_URL}/catalog/meals`)
+      const response = await fetch(`${API_BASE_URL}/catalog/restaurants/${restaurantId}/meals`)
       if (!response.ok) throw new Error("Failed to fetch meals")
       const data = await response.json()
       setMeals(data)
@@ -110,6 +104,7 @@ export default function BrowsePage() {
     setSelectedRestaurant(restaurant)
     setView("meals")
     setSearchQuery("")
+    fetchMeals(restaurant.id)
   }
 
   const handleBackToRestaurants = () => {
@@ -120,6 +115,7 @@ export default function BrowsePage() {
       // Otherwise just reset the view state
       setView("restaurants")
       setSelectedRestaurant(null)
+      setMeals([])
       setSearchQuery("")
     }
   }
@@ -130,12 +126,11 @@ export default function BrowsePage() {
     restaurant.address.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Filter meals by selected restaurant and search
+  // Filter meals by search (meals are already filtered by restaurant from API)
   const filteredMeals = meals.filter((meal) => {
-    const matchesRestaurant = !selectedRestaurant || meal.restaurant_id === selectedRestaurant.id
     const matchesSearch = meal.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       meal.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    return matchesRestaurant && matchesSearch
+    return matchesSearch
   })
 
   // Calculate discount percentage
@@ -200,7 +195,7 @@ export default function BrowsePage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={view === "restaurants" ? fetchRestaurants : fetchMeals}
+            onClick={view === "restaurants" ? fetchRestaurants : () => selectedRestaurant && fetchMeals(selectedRestaurant.id)}
             className="mt-2"
           >
             Try Again
