@@ -22,11 +22,7 @@ router = APIRouter(
 )
 
 @router.get("/login")
-def spotify_login():
-    """
-    Redirects user to Spotify authorization page.
-    User will grant permissions for the scopes defined in SPOTIFY_SCOPES.
-    """
+async def spotify_login():
     params = {
         "client_id": SPOTIFY_CLIENT_ID,
         "response_type": "code",
@@ -34,14 +30,11 @@ def spotify_login():
         "scope": SPOTIFY_SCOPES,
     }
     auth_url = f"https://accounts.spotify.com/authorize?{urlencode(params)}"
-    return {"URL": RedirectResponse(auth_url)}
+    return RedirectResponse(auth_url)
 
 @router.get("/callback")
-def spotify_callback(code: str):
-    """
-    Handles the callback from Spotify after user authorization.
-    Exchanges authorization code for access and refresh tokens.
-    """
+# whether it is successful or not redirect to frontend and add a code portion to add the data to db
+async def spotify_callback(code: str):
     # code = request.query_params.get("code")
     # code = code
     if not code:
@@ -77,11 +70,7 @@ def spotify_callback(code: str):
     }
 
 @router.get("/refresh")
-def refresh_access_token(refresh_token: str):
-    """
-    Refreshes an expired access token using the refresh token.
-    Should be called when the access token expires (typically after 1 hour).
-    """
+async def refresh_access_token(refresh_token: str):
     token_url = "https://accounts.spotify.com/api/token"
 
     # Create base64 encoded authorization header
