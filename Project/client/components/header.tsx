@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/auth-context"
-import { Leaf, LogOut } from "lucide-react"
+import { Leaf, LogOut, ShoppingCart, Package } from "lucide-react"
 
 export function Header() {
   const pathname = usePathname()
@@ -16,6 +16,11 @@ export function Header() {
     { href: "/map", label: "Map" },
     { href: "/recommendations", label: "Recommendations" },
     ...(user?.role === "owner" ? [{ href: "/owner", label: "Dashboard" }] : []),
+  ]
+
+  const userLinks = [
+    { href: "/cart", label: "Cart", icon: ShoppingCart },
+    { href: "/orders", label: "Orders", icon: Package },
   ]
 
   return (
@@ -44,11 +49,28 @@ export function Header() {
 
         <div className="flex items-center gap-3">
           {isAuthenticated ? (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground hidden sm:inline">{user?.name}</span>
+            <div className="flex items-center gap-2">
+              {userLinks.map((link) => {
+                const Icon = link.icon
+                return (
+                  <Button
+                    key={link.href}
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className={pathname === link.href ? "bg-accent" : ""}
+                  >
+                    <Link href={link.href}>
+                      <Icon className="h-4 w-4 md:mr-2" />
+                      <span className="hidden md:inline">{link.label}</span>
+                    </Link>
+                  </Button>
+                )
+              })}
+              <span className="text-sm text-muted-foreground hidden lg:inline">{user?.name}</span>
               <Button variant="outline" size="sm" onClick={logout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
+                <LogOut className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Logout</span>
               </Button>
             </div>
           ) : (

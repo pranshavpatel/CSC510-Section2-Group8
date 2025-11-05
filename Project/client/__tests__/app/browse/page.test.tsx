@@ -2,11 +2,33 @@ import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import BrowsePage from '@/app/browse/page'
+import { useAuth } from '@/context/auth-context'
+import * as api from '@/lib/api'
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   useSearchParams: jest.fn(),
+}))
+
+// Mock auth context
+jest.mock('@/context/auth-context', () => ({
+  useAuth: jest.fn(),
+}))
+
+// Mock toast
+jest.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({
+    toast: jest.fn(),
+  }),
+}))
+
+// Mock API functions
+jest.mock('@/lib/api', () => ({
+  addToCart: jest.fn(),
+  getCart: jest.fn(),
+  updateCartItem: jest.fn(),
+  removeFromCart: jest.fn(),
 }))
 
 // Mock fetch
@@ -95,6 +117,16 @@ describe('BrowsePage', () => {
     })
     mockGet.mockReturnValue(null)
     ;(global.fetch as jest.Mock).mockClear()
+    ;(useAuth as jest.Mock).mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+    })
+    ;(api.getCart as jest.Mock).mockResolvedValue({
+      cart_id: 'cart-1',
+      items: [],
+      cart_total: 0,
+    })
   })
 
   describe('Initial Rendering and Restaurant View', () => {
@@ -577,7 +609,7 @@ describe('BrowsePage', () => {
       })
     })
 
-    it('should show Order Now button for surplus meals', async () => {
+    it('should show + button for surplus meals', async () => {
       render(<BrowsePage />)
 
       await waitFor(() => {
@@ -586,8 +618,11 @@ describe('BrowsePage', () => {
       })
 
       await waitFor(() => {
-        const orderButtons = screen.getAllByText('Order Now')
-        expect(orderButtons.length).toBeGreaterThan(0)
+        const buttons = screen.getAllByRole('button')
+        const hasPlusButton = buttons.some(btn =>
+          btn.querySelector('svg')?.classList.contains('lucide-plus')
+        )
+        expect(hasPlusButton).toBe(true)
       })
     })
 

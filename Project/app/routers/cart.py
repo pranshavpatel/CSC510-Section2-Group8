@@ -200,16 +200,18 @@ async def checkout_cart(
     """
     Converts cart -> order atomically:
       1) lock meals rows used
-      2) verify surplus for each line
-      3) create order + order_items (price = surplus_price)
-      4) decrement meals.surplus_qty
+      2) verify surplus qty for surplus meals (if applicable)
+      3) create order + order_items (price = surplus_price for surplus meals, base_price for regular meals)
+      4) decrement meals.surplus_qty (only for surplus meals)
       5) write initial order_status_events('pending')
       6) clear cart
+    
+    Supports both surplus and regular meals in the same cart.
     """
     uid = str(user["id"]).strip()
     cart_id = await _get_or_create_cart_id(db, uid)
 
-    async with db.begin():  # atomic
+    try:
         items_q = text("""
             select ci.id as item_id, ci.meal_id, ci.qty,
                    m.surplus_qty, m.surplus_price, m.base_price, m.restaurant_id
@@ -229,11 +231,19 @@ async def checkout_cart(
 
         total = 0.0
         for r in rows:
-            if r["surplus_price"] is None:
-                raise HTTPException(status_code=400, detail="meal not available for surplus pricing")
-            if int(r["surplus_qty"]) < int(r["qty"]):
-                raise HTTPException(status_code=400, detail=f"not enough surplus for meal {r['meal_id']}")
-            total += float(r["surplus_price"]) * int(r["qty"])
+            # Check if this is a surplus meal or regular meal
+            is_surplus = r["surplus_price"] is not None and r["surplus_qty"] is not None
+            
+            if is_surplus:
+                # For surplus meals, check availability and use surplus_price
+                if int(r["surplus_qty"]) < int(r["qty"]):
+                    raise HTTPException(status_code=400, detail=f"not enough surplus for meal {r['meal_id']}")
+                price_per_item = float(r["surplus_price"])
+            else:
+                # For regular meals, use base_price
+                price_per_item = float(r["base_price"])
+            
+            total += price_per_item * int(r["qty"])
 
         create_order_q = text("""
             insert into orders (user_id, restaurant_id, status, total)
@@ -244,7 +254,16 @@ async def checkout_cart(
         order_id = ores.mappings().first()["id"]
 
         for r in rows:
-            line_price = float(r["surplus_price"]) * int(r["qty"])
+            # Determine if this is a surplus meal or regular meal
+            is_surplus = r["surplus_price"] is not None and r["surplus_qty"] is not None
+            
+            if is_surplus:
+                price_per_item = float(r["surplus_price"])
+            else:
+                price_per_item = float(r["base_price"])
+            
+            line_price = price_per_item * int(r["qty"])
+            
             ins_item = text("""
                 insert into order_items (order_id, meal_id, qty, price)
                 values (:oid, :mid, :qty, :price)
@@ -256,12 +275,14 @@ async def checkout_cart(
                 "price": line_price,
             })
 
-            dec = text("""
-                update meals
-                set surplus_qty = surplus_qty - :qty
-                where id = :mid
-            """)
-            await db.execute(dec, {"qty": int(r["qty"]), "mid": r["meal_id"]})
+            # Only decrement surplus_qty for surplus meals
+            if is_surplus:
+                dec = text("""
+                    update meals
+                    set surplus_qty = surplus_qty - :qty
+                    where id = :mid
+                """)
+                await db.execute(dec, {"qty": int(r["qty"]), "mid": r["meal_id"]})
 
         fin = text("update orders set total=:t where id=:oid")
         await db.execute(fin, {"t": total, "oid": order_id})
@@ -276,5 +297,11 @@ async def checkout_cart(
         clr = text("delete from cart_items where cart_id=:cid")
         await db.execute(clr, {"cid": cart_id})
 
-    # implicit commit via `async with db.begin()`
-    return {"order_id": order_id, "status": "pending", "total": total}
+        await db.commit()
+        return {"order_id": order_id, "status": "pending", "total": total}
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"checkout failed")
