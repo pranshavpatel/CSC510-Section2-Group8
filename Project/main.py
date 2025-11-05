@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from Mood2FoodRecSys.Spotify_Auth import router as spotify_router
+from Mood2FoodRecSys.RecSys import router as recsys_router
 from database.database import database
 
 # Initialize FastAPI application
@@ -8,9 +9,8 @@ app = FastAPI()
 
 # Include Spotify authentication routes
 app.include_router(spotify_router)
+app.include_router(recsys_router)
 
-# Configure CORS to allow frontend requests from any origin
-# Update allow_origins with specific domains in production for security
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins (change to specific domains in production)
