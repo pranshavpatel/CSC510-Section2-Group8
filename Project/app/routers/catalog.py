@@ -71,7 +71,7 @@ async def list_meals_for_restaurant(
 ):
     """
     Browse meals from one restaurant with:
-    - surplus_only (filter meals with surplus_qty > 0)
+    - surplus_only (filter meals with quantity > 0)
     - search (on meal name)
     - pagination (limit, offset)
     - sort (name or surplus_price)
@@ -93,7 +93,7 @@ async def list_meals_for_restaurant(
     }
 
     if surplus_only:
-        conds.append("m.surplus_qty > 0")
+        conds.append("m.quantity > 0")
 
     if search:
         conds.append("lower(m.name) like :q")
@@ -108,7 +108,7 @@ async def list_meals_for_restaurant(
             m.name,
             m.tags,
             m.base_price,
-            m.surplus_qty,
+            m.quantity,
             m.surplus_price,
             m.allergens,
             m.calories

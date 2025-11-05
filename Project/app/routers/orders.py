@@ -128,7 +128,7 @@ async def create_order(
 
         # lock row to keep surplus consistent
         meal_q = text("""
-            select id, surplus_qty, surplus_price, base_price
+            select id, quantity, surplus_price, base_price
             from meals
             where id = :mid
             for update
@@ -137,7 +137,7 @@ async def create_order(
         meal = meal_res.mappings().first()
         if not meal:
             raise HTTPException(status_code=404, detail=f"meal {meal_id} not found")
-        if (meal["surplus_qty"] or 0) < qty:
+        if (meal["quantity"] or 0) < qty:
             raise HTTPException(status_code=400, detail=f"not enough surplus for meal {meal_id}")
 
         line_price = float(meal["surplus_price"]) * qty
@@ -158,7 +158,7 @@ async def create_order(
         # decrement surplus
         update_meal_q = text("""
             update meals
-            set surplus_qty = surplus_qty - :qty
+            set quantity = quantity - :qty
             where id = :mid
         """)
         await db.execute(update_meal_q, {"qty": qty, "mid": meal_id})
@@ -313,7 +313,7 @@ async def cancel_order(
     for it in items_res.mappings().all():
         upd_meal_q = text("""
             update meals
-            set surplus_qty = surplus_qty + :qty
+            set quantity = quantity + :qty
             where id = :mid
         """)
         await db.execute(upd_meal_q, {"qty": it["qty"], "mid": it["meal_id"]})

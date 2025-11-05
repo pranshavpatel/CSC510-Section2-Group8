@@ -37,7 +37,7 @@ async def _get_cart_payload(db: AsyncSession, cart_id: str) -> Dict[str, Any]:
           ci.qty,
           m.name as meal_name,
           m.restaurant_id,
-          m.surplus_qty,
+          m.quantity,
           m.surplus_price,
           m.base_price
         from cart_items ci
@@ -62,7 +62,7 @@ async def _get_cart_payload(db: AsyncSession, cart_id: str) -> Dict[str, Any]:
             "qty": qty,
             "unit_price": unit_price,
             "line_total": line_total,
-            "surplus_left": int(r["surplus_qty"]) if r["surplus_qty"] is not None else 0,
+            "surplus_left": int(r["quantity"]) if r["quantity"] is not None else 0,
         })
     return {"cart_id": cart_id, "items": items, "cart_total": total}
 
@@ -87,7 +87,7 @@ async def add_item(
     """
     payload: { "meal_id": "...", "qty": 1 }
     If item exists: increments qty.
-    Enforces qty <= meals.surplus_qty (optimistic check).
+    Enforces qty <= meals.quantity (optimistic check).
     """
     meal_id = payload.get("meal_id")
     add_qty = int(payload.get("qty") or 0)
@@ -97,7 +97,7 @@ async def add_item(
     cart_id = await _get_or_create_cart_id(db, user["id"])
 
     meal_q = text("""
-        select id, surplus_qty, surplus_price
+        select id, quantity, surplus_price
         from meals
         where id = :mid
     """)
@@ -114,8 +114,8 @@ async def add_item(
     current_qty = int(cur["qty"]) if cur else 0
     new_qty = current_qty + add_qty
 
-    if meal["surplus_qty"] is not None and new_qty > int(meal["surplus_qty"]):
-        raise HTTPException(status_code=409, detail=f"only {meal['surplus_qty']} left for this item")
+    if meal["quantity"] is not None and new_qty > int(meal["quantity"]):
+        raise HTTPException(status_code=409, detail=f"only {meal['quantity']} left for this item")
 
     if cur:
         upd = text("""
@@ -144,12 +144,12 @@ async def update_item_qty(
 ):
     """
     Set exact qty for a cart item; qty>0.
-    Enforces qty <= meals.surplus_qty (optimistic check).
+    Enforces qty <= meals.quantity (optimistic check).
     """
     cart_id = await _get_or_create_cart_id(db, user["id"])
 
     own_q = text("""
-        select ci.meal_id, m.surplus_qty
+        select ci.meal_id, m.quantity
         from cart_items ci
         join meals m on m.id = ci.meal_id
         where ci.id = :iid and ci.cart_id = :cid
@@ -158,8 +158,8 @@ async def update_item_qty(
     if not own:
         raise HTTPException(status_code=404, detail="item not found")
 
-    if own["surplus_qty"] is not None and qty > int(own["surplus_qty"]):
-        raise HTTPException(status_code=409, detail=f"only {own['surplus_qty']} left for this item")
+    if own["quantity"] is not None and qty > int(own["quantity"]):
+        raise HTTPException(status_code=409, detail=f"only {own['quantity']} left for this item")
 
     upd = text("update cart_items set qty=:q where id=:iid")
     await db.execute(upd, {"q": qty, "iid": item_id})
@@ -202,7 +202,7 @@ async def checkout_cart(
       1) lock meals rows used
       2) verify surplus qty for surplus meals (if applicable)
       3) create order + order_items (price = surplus_price for surplus meals, base_price for regular meals)
-      4) decrement meals.surplus_qty (only for surplus meals)
+      4) decrement meals.quantity (only for surplus meals)
       5) write initial order_status_events('pending')
       6) clear cart
     
@@ -214,7 +214,7 @@ async def checkout_cart(
     try:
         items_q = text("""
             select ci.id as item_id, ci.meal_id, ci.qty,
-                   m.surplus_qty, m.surplus_price, m.base_price, m.restaurant_id
+                   m.quantity, m.surplus_price, m.base_price, m.restaurant_id
             from cart_items ci
             join meals m on m.id = ci.meal_id
             where ci.cart_id = :cid
@@ -232,11 +232,11 @@ async def checkout_cart(
         total = 0.0
         for r in rows:
             # Check if this is a surplus meal or regular meal
-            is_surplus = r["surplus_price"] is not None and r["surplus_qty"] is not None
+            is_surplus = r["surplus_price"] is not None and r["quantity"] is not None
             
             if is_surplus:
                 # For surplus meals, check availability and use surplus_price
-                if int(r["surplus_qty"]) < int(r["qty"]):
+                if int(r["quantity"]) < int(r["qty"]):
                     raise HTTPException(status_code=400, detail=f"not enough surplus for meal {r['meal_id']}")
                 price_per_item = float(r["surplus_price"])
             else:
@@ -255,7 +255,7 @@ async def checkout_cart(
 
         for r in rows:
             # Determine if this is a surplus meal or regular meal
-            is_surplus = r["surplus_price"] is not None and r["surplus_qty"] is not None
+            is_surplus = r["surplus_price"] is not None and r["quantity"] is not None
             
             if is_surplus:
                 price_per_item = float(r["surplus_price"])
@@ -275,11 +275,11 @@ async def checkout_cart(
                 "price": line_price,
             })
 
-            # Only decrement surplus_qty for surplus meals
+            # Only decrement quantity for surplus meals
             if is_surplus:
                 dec = text("""
                     update meals
-                    set surplus_qty = surplus_qty - :qty
+                    set quantity = quantity - :qty
                     where id = :mid
                 """)
                 await db.execute(dec, {"qty": int(r["qty"]), "mid": r["meal_id"]})

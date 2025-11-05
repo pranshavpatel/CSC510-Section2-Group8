@@ -26,7 +26,7 @@ interface Meal {
   name: string
   tags: string[]
   base_price: number
-  surplus_qty: number
+  quantity: number
   surplus_price: number | null
   allergens: string[]
   calories: number
@@ -371,12 +371,12 @@ export default function BrowsePage() {
         <>
           {(() => {
             // Split meals into surplus and regular
-            const surplusMeals = filteredMeals.filter((meal) => meal.surplus_qty > 0 && meal.surplus_price !== null)
-            const regularMeals = filteredMeals.filter((meal) => meal.surplus_qty === 0 || meal.surplus_price === null)
+            const surplusMeals = filteredMeals.filter((meal) => meal.quantity > 0 && meal.surplus_price !== null)
+            const regularMeals = filteredMeals.filter((meal) => meal.quantity === 0 || meal.surplus_price === null)
 
             const renderMealCard = (meal: Meal) => {
               const discountPercent = getDiscountPercentage(meal.base_price, meal.surplus_price)
-              const hasSurplus = meal.surplus_qty > 0
+              const hasSurplus = meal.quantity > 0
               const hasSurplusPrice = meal.surplus_price !== null
               const isUpdating = updatingMeals.has(meal.id)
               const currentQty = mealQuantities[meal.id]?.qty || 0
@@ -425,7 +425,7 @@ export default function BrowsePage() {
                         <div className="flex items-center justify-between">
                           <span className="text-muted-foreground">Available:</span>
                           <Badge variant="outline" className="text-xs">
-                            {meal.surplus_qty} left
+                            {meal.quantity} left
                           </Badge>
                         </div>
                       )}
@@ -458,7 +458,7 @@ export default function BrowsePage() {
                               variant="outline"
                               size="icon"
                               className="h-9 w-9"
-                              onClick={() => handleQuantityChange(meal.id, meal.name, currentQty - 1, meal.surplus_qty)}
+                              onClick={() => handleQuantityChange(meal.id, meal.name, currentQty - 1, meal.quantity)}
                               disabled={isUpdating}
                             >
                               <Minus className="h-4 w-4" />
@@ -475,8 +475,8 @@ export default function BrowsePage() {
                             variant={currentQty > 0 ? "outline" : "default"}
                             size="icon"
                             className="h-9 w-9"
-                            onClick={() => handleQuantityChange(meal.id, meal.name, currentQty + 1, meal.surplus_qty)}
-                            disabled={isUpdating || currentQty >= meal.surplus_qty}
+                            onClick={() => handleQuantityChange(meal.id, meal.name, currentQty + 1, meal.quantity)}
+                            disabled={isUpdating || currentQty >= meal.quantity}
                           >
                             {isUpdating ? (
                               <Loader2 className="h-4 w-4 animate-spin" />

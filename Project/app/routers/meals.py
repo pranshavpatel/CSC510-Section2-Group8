@@ -14,13 +14,13 @@ async def list_meals(
 ):
     try:
         q = """
-          select id, restaurant_id, name, tags, base_price, surplus_qty, surplus_price, allergens, calories
+          select id, restaurant_id, name, tags, base_price, quantity, surplus_price, allergens, calories
           from meals
           {where_clause}
           order by created_at desc
           limit :limit
         """
-        where = "where surplus_qty > 0" if surplus_only else ""
+        where = "where quantity > 0" if surplus_only else ""
         result = await db.execute(text(q.format(where_clause=where)), {"limit": limit})
         rows = result.mappings().all()
         return [dict(r) for r in rows]
