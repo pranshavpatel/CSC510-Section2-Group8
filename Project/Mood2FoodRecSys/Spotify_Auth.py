@@ -23,7 +23,7 @@ router = APIRouter(
 )
 
 @router.get("/login")
-async def spotify_login():
+async def spotify_login(user_id: str):
     try:
         if not all([SPOTIFY_CLIENT_ID, SPOTIFY_REDIRECT_URI, SPOTIFY_SCOPES]):
             raise HTTPException(status_code=500, detail="Spotify configuration incomplete")
@@ -33,9 +33,10 @@ async def spotify_login():
             "response_type": "code",
             "redirect_uri": SPOTIFY_REDIRECT_URI,
             "scope": SPOTIFY_SCOPES,
+            "state": user_id
         }
         auth_url = f"https://accounts.spotify.com/authorize?{urlencode(params)}"
-        return RedirectResponse(auth_url)
+        return {"URL":RedirectResponse(auth_url)}
         
     except HTTPException:
         raise
@@ -44,7 +45,7 @@ async def spotify_login():
         raise HTTPException(status_code=500, detail="Failed to initiate Spotify login")
 
 @router.get("/callback")
-async def spotify_callback(code: str):
+async def spotify_callback(code: str, state: str):
     try:
         if not code:
             raise HTTPException(status_code=400, detail="Missing authorization code")
@@ -77,12 +78,36 @@ async def spotify_callback(code: str):
             
         expires_at = int(time.time()) + expires_in if expires_in else None
 
-        return {
+        # Store tokens in database
+        
+        user_id = state
+        query_state_exists = "SELECT 1 FROM users_spotify_auth_tokens WHERE user_id = :user_id"
+
+        user_exists = await database.fetch_val(query=query_state_exists, values={"user_id": user_id})
+
+        if user_exists:
+            query = """
+                UPDATE users_spotify_auth_tokens
+                SET access_token = :access_token,
+                    refresh_token = :refresh_token,
+                    expires_at = :expires_at
+                WHERE user_id = :user_id
+            """
+        
+        else:
+            query = """
+            INSERT INTO users_spotify_auth_tokens (user_id, access_token, refresh_token, expires_at)
+            VALUES (:user_id, :access_token, :refresh_token, :expires_at)
+        """
+
+        await database.execute(query, {
+            "user_id": user_id,
             "access_token": access_token,
             "refresh_token": refresh_token,
-            "expires_in": expires_in,
-            "expires_at": expires_at,
-        }
+            "expires_at": expires_at
+        })
+        
+        return {"message": "Spotify tokens stored successfully"}
         
     except HTTPException:
         raise
