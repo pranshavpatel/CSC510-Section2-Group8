@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Input } from "@/components/ui/input"
 import { ShoppingCart, Trash2, Loader2, Plus, Minus, AlertCircle, CheckCircle2 } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { getCart, updateCartItem, removeFromCart, clearCart, checkoutCart } from "@/lib/api"

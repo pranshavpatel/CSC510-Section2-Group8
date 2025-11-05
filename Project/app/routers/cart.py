@@ -304,4 +304,4 @@ async def checkout_cart(
         raise
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"checkout failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"checkout failed")
