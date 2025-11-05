@@ -76,7 +76,7 @@ Input format:
 moods: [<list of tuples in (mood, normalized weight) format>],
 food_preference: [],
 other_preferences: [],
-available_items:{{"food_item_name": <list of tags associated with the item>}}
+available_items:[{{"id": "id of the food item", "name": "name of the food item", "tags": <list of tags associated with the food item>}}]
 }}
 
 Output:
@@ -85,6 +85,7 @@ Suggested_food: [<list of 10 recommended food based on preferences>]
 }}
 
 IMPORTANT INSTRUCTIONS:
+-RETURN FOOD ITEMS IN THE SAME FORMAT AS PROVIDED IN available_items.
 - DO NOT ADD ANY OTHER EXPLANATION.
 - DO NOT SUGGEST FOOD OUTSIDE OF THE PROVIDED "available_items" list.
 - ONLY RETURN OUTPUT IN THE SPECIFIED FORMAT.
@@ -98,7 +99,15 @@ def generate_user_prompt(top_moods, preference, relevant_food_items):
         if not relevant_food_items:
             available_items = {}
         else:
-            available_items = {item["name"]: item["tags"] for item in relevant_food_items if "name" in item and "tags" in item}
+            available_items = [
+            {
+                "id": item["id"],     # keep id reference
+                "name": item["name"],
+                "tags": item["tags"]
+            }
+            for item in relevant_food_items
+            if "id" in item and "name" in item and "tags" in item
+        ]
         
         food_prefs = preference.get("food_preferences", []) if preference else []
         other_prefs = preference.get("other_preferences", []) if preference else []

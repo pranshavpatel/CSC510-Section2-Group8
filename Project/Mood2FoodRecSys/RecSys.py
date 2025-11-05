@@ -36,7 +36,20 @@ async def get_recommendations(user_id: str, restaurant_id: str):
         mood_distribution = compute_mood_distribution(mood_analysis, weights)
         food_recommendations = await recommend_food_based_on_mood(mood_distribution, preferences, relevant_food_items)
 
-        return {"recommended_foods": food_recommendations}
+        suggested = food_recommendations.get("Suggested_food", [])
+
+
+        # extract just ids
+        recommended_ids = [item["id"] for item in suggested]
+
+        # print(recommended_ids)
+        # now match back
+        recommended_full_objects = [item for item in relevant_food_items if str(item["id"]) in recommended_ids]
+        # print(type(relevant_food_items))
+        # print(relevant_food_items)
+        # recommended_full_objects = [item for item in relevant_food_items if item["id"] in food_recommendations]
+        # print(recommended_full_objects)
+        return {"recommended_foods": recommended_full_objects}
         
     except HTTPException:
         raise

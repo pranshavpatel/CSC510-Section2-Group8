@@ -281,6 +281,7 @@ async def recommend_food_based_on_mood(top_moods, preference, relevant_food_item
         )
         
         content = response_food_rec.choices[0].message.content
+        
         if not content:
             raise ValueError("Empty response from Groq API")
 
@@ -300,7 +301,7 @@ async def fetch_data_from_db(restaurant_id):
         if not restaurant_id:
             raise ValueError("restaurant_id is required")
             
-        query = "SELECT name, tags from meals WHERE restaurant_id =:restaurant_id"
+        query = "SELECT * from meals WHERE restaurant_id =:restaurant_id"
         values = {"restaurant_id": restaurant_id}
 
         response = await database.fetch_all(query=query, values=values)
