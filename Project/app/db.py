@@ -4,7 +4,9 @@ from .config import settings
 engine = create_async_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
-    connect_args={"ssl": "require"},  
+    connect_args={"ssl": "require"}, 
+    future=True,
+    echo=False 
 )
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
