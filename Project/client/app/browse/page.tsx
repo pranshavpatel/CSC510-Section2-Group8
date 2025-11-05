@@ -6,7 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { MapPin, Search, Store, ArrowLeft, UtensilsCrossed, Loader2 } from "lucide-react"
+import { MapPin, Search, Store, ArrowLeft, UtensilsCrossed, Loader2, Plus, Minus } from "lucide-react"
+import { useAuth } from "@/context/auth-context"
+import { addToCart, getCart, updateCartItem, removeFromCart } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 
 // Types based on DB schema
 interface Restaurant {
@@ -35,6 +38,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
 export default function BrowsePage() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { isAuthenticated } = useAuth()
+  const { toast } = useToast()
   const restaurantIdFromUrl = searchParams.get('restaurant')
   
   const [view, setView] = useState<"restaurants" | "meals">("restaurants")
@@ -46,11 +51,21 @@ export default function BrowsePage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [updatingMeals, setUpdatingMeals] = useState<Set<string>>(new Set())
+  const [mealQuantities, setMealQuantities] = useState<Record<string, { qty: number, itemId: string }>>({})
 
   // Fetch restaurants on mount
   useEffect(() => {
     fetchRestaurants()
   }, [])
+
+  // Load cart to get current quantities when viewing meals
+  useEffect(() => {
+    if (isAuthenticated && view === "meals") {
+      loadCartQuantities()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, view])
 
   // Handle restaurant selection from URL parameter
   useEffect(() => {
@@ -100,6 +115,23 @@ export default function BrowsePage() {
     }
   }
 
+  const loadCartQuantities = async () => {
+    if (!isAuthenticated) return
+    try {
+      const cart = await getCart()
+      const quantities: Record<string, { qty: number, itemId: string }> = {}
+      cart.items.forEach((item: any) => {
+        quantities[item.meal_id] = {
+          qty: item.qty,
+          itemId: item.item_id
+        }
+      })
+      setMealQuantities(quantities)
+    } catch (err) {
+      console.error("Error loading cart:", err)
+    }
+  }
+
   const handleRestaurantClick = (restaurant: Restaurant) => {
     setSelectedRestaurant(restaurant)
     setView("meals")
@@ -137,6 +169,80 @@ export default function BrowsePage() {
   const getDiscountPercentage = (basePrice: number, surplusPrice: number | null) => {
     if (!surplusPrice || basePrice <= 0) return 0
     return Math.round(((basePrice - surplusPrice) / basePrice) * 100)
+  }
+
+  const handleQuantityChange = async (mealId: string, mealName: string, newQty: number, maxQty: number) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Please login",
+        description: "You need to be logged in to add items to cart",
+        variant: "destructive",
+      })
+      router.push('/login')
+      return
+    }
+
+    if (newQty < 0 || newQty > maxQty) return
+
+    setUpdatingMeals(prev => new Set(prev).add(mealId))
+    
+    try {
+      const currentItem = mealQuantities[mealId]
+      
+      if (newQty === 0 && currentItem) {
+        // Remove from cart
+        await removeFromCart(currentItem.itemId)
+        setMealQuantities(prev => {
+          const next = { ...prev }
+          delete next[mealId]
+          return next
+        })
+        toast({
+          title: "Removed from cart",
+          description: `${mealName} has been removed from your cart`,
+        })
+      } else if (currentItem) {
+        // Update quantity
+        await updateCartItem(currentItem.itemId, newQty)
+        setMealQuantities(prev => ({
+          ...prev,
+          [mealId]: { ...prev[mealId], qty: newQty }
+        }))
+        toast({
+          title: "Cart updated",
+          description: `${mealName} quantity updated to ${newQty}`,
+        })
+      } else if (newQty > 0) {
+        // Add new item
+        const cart = await addToCart(mealId, newQty)
+        // Find the item_id for this meal from the returned cart
+        const addedItem = cart.items.find((item: any) => item.meal_id === mealId)
+        if (addedItem) {
+          setMealQuantities(prev => ({
+            ...prev,
+            [mealId]: { qty: newQty, itemId: addedItem.item_id }
+          }))
+        }
+        toast({
+          title: "Added to cart",
+          description: `${mealName} has been added to your cart`,
+        })
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to update cart",
+        variant: "destructive",
+      })
+      // Reload cart to sync state
+      loadCartQuantities()
+    } finally {
+      setUpdatingMeals(prev => {
+        const next = new Set(prev)
+        next.delete(mealId)
+        return next
+      })
+    }
   }
 
   return (
@@ -272,6 +378,8 @@ export default function BrowsePage() {
               const discountPercent = getDiscountPercentage(meal.base_price, meal.surplus_price)
               const hasSurplus = meal.surplus_qty > 0
               const hasSurplusPrice = meal.surplus_price !== null
+              const isUpdating = updatingMeals.has(meal.id)
+              const currentQty = mealQuantities[meal.id]?.qty || 0
 
               return (
                 <Card key={meal.id} className="overflow-hidden group hover:shadow-lg transition-shadow">
@@ -338,9 +446,46 @@ export default function BrowsePage() {
                           ${meal.base_price.toFixed(2)}
                         </span>
                       )}
-                      <Button size="sm" disabled={!hasSurplus}>
-                        {hasSurplus ? "Order Now" : "Sold Out"}
-                      </Button>
+                      
+                      {!hasSurplus ? (
+                        <Button size="sm" disabled>
+                          Sold Out
+                        </Button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {currentQty > 0 && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={() => handleQuantityChange(meal.id, meal.name, currentQty - 1, meal.surplus_qty)}
+                              disabled={isUpdating}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                          )}
+                          
+                          {currentQty > 0 && (
+                            <div className="min-w-[2rem] text-center">
+                              <span className="font-semibold text-lg">{currentQty}</span>
+                            </div>
+                          )}
+                          
+                          <Button
+                            variant={currentQty > 0 ? "outline" : "default"}
+                            size="icon"
+                            className="h-9 w-9"
+                            onClick={() => handleQuantityChange(meal.id, meal.name, currentQty + 1, meal.surplus_qty)}
+                            disabled={isUpdating || currentQty >= meal.surplus_qty}
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Plus className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
