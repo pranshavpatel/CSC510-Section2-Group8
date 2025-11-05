@@ -1,5 +1,7 @@
 from Mood2FoodRecSys.RecSysFunctions import get_user_profile_and_recent_tracks, compute_time_weights, analyze_mood_with_groq, compute_mood_distribution, recommend_food_based_on_mood, fetch_data_from_db, fetch_preferences_from_db
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from app.auth import current_user
 import asyncio
 import logging
 
@@ -11,12 +13,21 @@ router = APIRouter(
 )
 
 
+class RecommendationRequest(BaseModel):
+    restaurant_id: str
+
 
 @router.post("/get_recommendations")
-async def get_recommendations(user_id: str, restaurant_id: str):
+async def get_recommendations(
+    request: RecommendationRequest,
+    user: dict = Depends(current_user)
+):
     try:
-        if not user_id or not restaurant_id:
-            raise HTTPException(status_code=400, detail="user_id and restaurant_id are required")
+        user_id = user["id"]
+        restaurant_id = request.restaurant_id
+        
+        if not restaurant_id:
+            raise HTTPException(status_code=400, detail="restaurant_id is required")
 
         recent_tracks = await get_user_profile_and_recent_tracks(user_id=user_id)
         if not recent_tracks:
@@ -30,16 +41,27 @@ async def get_recommendations(user_id: str, restaurant_id: str):
             fetch_preferences_from_db(user_id=user_id)
         )
         
+        # Return empty array instead of 404 if no food items
         if not relevant_food_items:
-            raise HTTPException(status_code=404, detail="No food items found for restaurant")
+            return {"recommended_foods": []}
             
         mood_distribution = compute_mood_distribution(mood_analysis, weights)
         food_recommendations = await recommend_food_based_on_mood(mood_distribution, preferences, relevant_food_items)
 
-        return {"recommended_foods": food_recommendations}
+        suggested = food_recommendations.get("Suggested_food", [])
+
+        # extract just ids
+        recommended_ids = [item["id"] for item in suggested]
+
+        # now match back
+        recommended_full_objects = [item for item in relevant_food_items if str(item["id"]) in recommended_ids]
         
-    except HTTPException:
-        raise
+        return {"recommended_foods": recommended_full_objects}
+        
+    except HTTPException as http_ex:
+        # Re-raise HTTP exceptions with their original status code
+        raise http_ex
     except Exception as e:
-        logging.error(f"Error in get_recommendations: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error occurred while generating recommendations")
+        # Log unexpected errors and return 500
+        logging.error(f"Unexpected error in get_recommendations: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error while generating recommendations")

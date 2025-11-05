@@ -165,7 +165,7 @@ async def get_user_profile_and_recent_tracks(user_id: str):
         raise HTTPException(status_code=401, detail="Spotify authentication failed")
     except Exception as e:
         logging.error(f"Error fetching recent tracks: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to fetch recent tracks")
+        raise HTTPException(status_code=500, detail=f"{str(e)}")
 
 
 def compute_time_weights(items_dict: list):
@@ -281,6 +281,7 @@ async def recommend_food_based_on_mood(top_moods, preference, relevant_food_item
         )
         
         content = response_food_rec.choices[0].message.content
+        
         if not content:
             raise ValueError("Empty response from Groq API")
 
@@ -300,7 +301,7 @@ async def fetch_data_from_db(restaurant_id):
         if not restaurant_id:
             raise ValueError("restaurant_id is required")
             
-        query = "SELECT name, tags from meals WHERE restaurant_id =:restaurant_id"
+        query = "SELECT * from meals WHERE restaurant_id =:restaurant_id"
         values = {"restaurant_id": restaurant_id}
 
         response = await database.fetch_all(query=query, values=values)

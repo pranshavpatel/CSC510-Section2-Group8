@@ -218,3 +218,63 @@ export async function cancelOrder(orderId: string) {
   return response.json()
 }
 
+// ==================== SPOTIFY & RECOMMENDATIONS API ====================
+
+/**
+ * Check if user has connected Spotify
+ */
+export async function checkSpotifyStatus() {
+  const response = await authenticatedFetch(`${API_BASE_URL}/spotify/status`)
+  
+  if (!response.ok) {
+    throw new Error("Failed to check Spotify status")
+  }
+  
+  return response.json()
+}
+
+/**
+ * Initiate Spotify OAuth by fetching the auth URL and redirecting
+ * The backend returns the Spotify authorization URL as JSON
+ */
+export async function initiateSpotifyLogin() {
+  const response = await authenticatedFetch(`${API_BASE_URL}/spotify/login`)
+  
+  if (!response.ok) {
+    throw new Error("Failed to initiate Spotify login")
+  }
+  
+  const data = await response.json()
+  
+  // Redirect browser to Spotify OAuth
+  if (data.auth_url) {
+    window.location.href = data.auth_url
+  } else {
+    throw new Error("No auth URL received from server")
+  }
+}
+
+/**
+ * Get mood-based meal recommendations for a restaurant (authenticated route)
+ * Returns recommendations if Spotify is connected
+ * Throws error with status code information for proper error handling
+ */
+export async function getMoodRecommendations(restaurantId: string) {
+  const response = await authenticatedFetch(`${API_BASE_URL}/recsys/get_recommendations`, {
+    method: "POST",
+    body: JSON.stringify({ restaurant_id: restaurantId }),
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    const errorMessage = error.detail || "Failed to get recommendations"
+    
+    // Create error with status code for better error handling
+    const err = new Error(errorMessage) as Error & { status: number }
+    err.status = response.status
+    throw err
+  }
+  
+  return response.json()
+}
+

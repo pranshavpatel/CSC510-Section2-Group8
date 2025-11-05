@@ -4,9 +4,19 @@ from .config import settings
 from .routers import meals, catalog, orders, debug_auth, auth_routes, me, address, cart
 import sys
 from Mood2FoodRecSys.Spotify_Auth import router as spotify_router
+from Mood2FoodRecSys.RecSys import router as recsys_router
 from database.database import database
 
 app = FastAPI(title="VibeDish API", version="0.1.0")
+
+# Database lifecycle events
+@app.on_event("startup")
+async def startup():
+    await database.connect()
+
+@app.on_event("shutdown")
+async def shutdown():
+    await database.disconnect()
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,3 +40,4 @@ app.include_router(catalog.router, prefix="/catalog", tags=["catalog"])
 app.include_router(orders.router, prefix="/orders", tags=["orders"])
 app.include_router(debug_auth.router, prefix="/debug", tags=["debug"])
 app.include_router(spotify_router)
+app.include_router(recsys_router)
