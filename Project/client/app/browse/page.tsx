@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { MapPin, Search, Store, ArrowLeft, UtensilsCrossed, Loader2, Plus, Minus } from "lucide-react"
+import { MapPin, Search, Store, ArrowLeft, UtensilsCrossed, Loader2, Plus, Minus, Music, Sparkles } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
-import { addToCart, getCart, updateCartItem, removeFromCart } from "@/lib/api"
+import { addToCart, getCart, updateCartItem, removeFromCart, getMoodRecommendations, checkSpotifyStatus, initiateSpotifyLogin } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 
 // Types based on DB schema
@@ -41,6 +41,7 @@ export default function BrowsePage() {
   const { isAuthenticated } = useAuth()
   const { toast } = useToast()
   const restaurantIdFromUrl = searchParams.get('restaurant')
+  const spotifyConnected = searchParams.get('spotify_connected')
   
   const [view, setView] = useState<"restaurants" | "meals">("restaurants")
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null)
@@ -53,6 +54,11 @@ export default function BrowsePage() {
   const [error, setError] = useState<string | null>(null)
   const [updatingMeals, setUpdatingMeals] = useState<Set<string>>(new Set())
   const [mealQuantities, setMealQuantities] = useState<Record<string, { qty: number, itemId: string }>>({})
+  
+  // Recommendation states
+  const [recommendedMealIds, setRecommendedMealIds] = useState<string[]>([])
+  const [showSpotifyConnect, setShowSpotifyConnect] = useState(false)
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false)
 
   // Fetch restaurants on mount
   useEffect(() => {
@@ -66,6 +72,31 @@ export default function BrowsePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, view])
+
+  // Handle Spotify connection callback
+  useEffect(() => {
+    if (spotifyConnected === 'true' && selectedRestaurant) {
+      toast({
+        title: "Spotify Connected!",
+        description: "Fetching your personalized recommendations...",
+      })
+      // Clean URL
+      const url = new URL(window.location.href)
+      url.searchParams.delete('spotify_connected')
+      window.history.replaceState({}, '', url.toString())
+      // Fetch recommendations
+      fetchRecommendations(selectedRestaurant.id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spotifyConnected])
+
+  // Fetch recommendations when meals are loaded and user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && view === "meals" && selectedRestaurant && meals.length > 0) {
+      fetchRecommendations(selectedRestaurant.id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, view, selectedRestaurant, meals.length])
 
   // Handle restaurant selection from URL parameter
   useEffect(() => {
@@ -129,6 +160,67 @@ export default function BrowsePage() {
       setMealQuantities(quantities)
     } catch (err) {
       console.error("Error loading cart:", err)
+    }
+  }
+
+  const fetchRecommendations = async (restaurantId: string) => {
+    if (!isAuthenticated) return
+    
+    setLoadingRecommendations(true)
+    setShowSpotifyConnect(false)
+    setRecommendedMealIds([])
+    
+    try {
+      const response = await getMoodRecommendations(restaurantId)
+      
+      if (response.recommended_foods && Array.isArray(response.recommended_foods)) {
+        // Extract meal IDs directly from the response
+        const matchedIds = response.recommended_foods
+          .map((food: any) => food.id)
+          .filter((id: string) => id)
+        
+        setRecommendedMealIds(matchedIds)
+        
+        if (matchedIds.length > 0) {
+          toast({
+            title: "Recommendations ready!",
+            description: `We found ${matchedIds.length} perfect meal${matchedIds.length > 1 ? 's' : ''} for your mood`,
+          })
+        }
+      }
+    } catch (err: any) {
+      console.error("Error fetching recommendations:", err)
+      
+      // Check for 404 error indicating Spotify not connected
+      if (err.status === 404 || err.message?.includes("User Spotify authentication not found")) {
+        setShowSpotifyConnect(true)
+      }
+      // Silently ignore other errors (no tracks found, API issues, etc.)
+    } finally {
+      setLoadingRecommendations(false)
+    }
+  }
+
+  const handleSpotifyConnect = async () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Error",
+        description: "Please login to connect Spotify",
+        variant: "destructive",
+      })
+      router.push('/login')
+      return
+    }
+
+    try {
+      // This will redirect to Spotify OAuth
+      await initiateSpotifyLogin()
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to connect to Spotify. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -369,10 +461,51 @@ export default function BrowsePage() {
       {/* Meals View */}
       {!loading && view === "meals" && (
         <>
+          {/* Spotify Connection Card */}
+          {isAuthenticated && showSpotifyConnect && (
+            <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-secondary/5 to-background">
+              <CardContent className="py-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 flex-shrink-0">
+                    <Music className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <h3 className="font-semibold text-lg flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-primary" />
+                        Get Personalized Recommendations
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Connect your Spotify account to get meal recommendations based on your current mood and listening habits
+                      </p>
+                    </div>
+                    <Button onClick={handleSpotifyConnect} className="gap-2">
+                      <Music className="h-4 w-4" />
+                      Connect Spotify
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Loading Recommendations */}
+          {loadingRecommendations && (
+            <Card className="border-2 border-primary/20">
+              <CardContent className="py-8 text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  Analyzing your music taste to find the perfect meals...
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {(() => {
-            // Split meals into surplus and regular
-            const surplusMeals = filteredMeals.filter((meal) => meal.quantity > 0 && meal.surplus_price !== null)
-            const regularMeals = filteredMeals.filter((meal) => meal.quantity === 0 || meal.surplus_price === null)
+            // Split meals into recommended, surplus and regular
+            const recommendedMeals = filteredMeals.filter((meal) => recommendedMealIds.includes(meal.id))
+            const surplusMeals = filteredMeals.filter((meal) => meal.quantity > 0 && meal.surplus_price !== null && !recommendedMealIds.includes(meal.id))
+            const regularMeals = filteredMeals.filter((meal) => (meal.quantity === 0 || meal.surplus_price === null) && !recommendedMealIds.includes(meal.id))
 
             const renderMealCard = (meal: Meal) => {
               const discountPercent = getDiscountPercentage(meal.base_price, meal.surplus_price)
@@ -494,6 +627,29 @@ export default function BrowsePage() {
 
             return (
               <>
+                {/* Recommended Meals Section */}
+                {recommendedMeals.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
+                          <Sparkles className="h-6 w-6" />
+                          Perfect for Your Mood
+                        </h2>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Based on your recent Spotify listening
+                        </p>
+                      </div>
+                      <Badge variant="default" className="text-sm">
+                        {recommendedMeals.length} {recommendedMeals.length === 1 ? "pick" : "picks"}
+                      </Badge>
+                    </div>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {recommendedMeals.map(renderMealCard)}
+                    </div>
+                  </div>
+                )}
+
                 {/* Surplus Meals Section */}
                 {surplusMeals.length > 0 && (
                   <div className="space-y-4">

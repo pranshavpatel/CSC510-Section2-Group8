@@ -84,53 +84,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Sample Recommendations */}
-      <section className="container py-20">
-        <div className="space-y-8">
-          <div className="text-center space-y-3">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Meals for Every Mood</h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Here's a taste of what we recommend based on different moods
-            </p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {moodRecommendations.map((item) => (
-              <Card key={item.id} className="overflow-hidden group hover:shadow-lg transition-shadow">
-                <div className="relative h-48 overflow-hidden">
-                  <Image
-                    src={item.image || "/placeholder.svg"}
-                    alt={item.name}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <Badge className="absolute top-3 right-3 bg-background/90 text-foreground border">{item.mood}</Badge>
-                </div>
-                <CardHeader>
-                  <CardTitle className="text-lg">{item.name}</CardTitle>
-                  <CardDescription className="line-clamp-2">{item.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">{item.restaurant}</span>
-                    <span className="font-semibold">${item.price}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="text-center">
-            <Button size="lg" asChild>
-              <Link href="/recommendations">
-                <Heart className="h-5 w-5 mr-2" />
-                Get Your Recommendations
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="container py-20">
         <Card className="bg-gradient-to-br from-primary/10 via-secondary/5 to-background border-2">

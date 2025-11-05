@@ -2,10 +2,11 @@ from database.database import database
 import os
 from dotenv import load_dotenv
 from fastapi.responses import RedirectResponse, JSONResponse
-from fastapi import Request, APIRouter, HTTPException
+from fastapi import Request, APIRouter, HTTPException, Depends
 import requests, base64, json, time
 from urllib.parse import urlencode
 import logging
+from app.auth import current_user
 
 load_dotenv()
 
@@ -14,6 +15,7 @@ SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
 SPOTIFY_SCOPES = os.getenv("SPOTIFY_SCOPES")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 # Create router for Spotify authentication endpoints
 router = APIRouter(
@@ -23,19 +25,28 @@ router = APIRouter(
 )
 
 @router.get("/login")
-async def spotify_login():
+async def spotify_login(user: dict = Depends(current_user)):
+    """
+    Generate Spotify OAuth authorization URL for the authenticated user.
+    Returns JSON with the auth_url that the frontend should redirect to.
+    """
     try:
         if not all([SPOTIFY_CLIENT_ID, SPOTIFY_REDIRECT_URI, SPOTIFY_SCOPES]):
             raise HTTPException(status_code=500, detail="Spotify configuration incomplete")
+        
+        user_id = user["id"]
             
         params = {
             "client_id": SPOTIFY_CLIENT_ID,
             "response_type": "code",
             "redirect_uri": SPOTIFY_REDIRECT_URI,
             "scope": SPOTIFY_SCOPES,
+            "state": user_id
         }
         auth_url = f"https://accounts.spotify.com/authorize?{urlencode(params)}"
-        return RedirectResponse(auth_url)
+        
+        # Return JSON instead of redirect to avoid CORS issues with fetch
+        return {"auth_url": auth_url}
         
     except HTTPException:
         raise
@@ -44,10 +55,13 @@ async def spotify_login():
         raise HTTPException(status_code=500, detail="Failed to initiate Spotify login")
 
 @router.get("/callback")
-async def spotify_callback(code: str):
+async def spotify_callback(code: str, state: str):
     try:
         if not code:
             raise HTTPException(status_code=400, detail="Missing authorization code")
+        
+        if not state:
+            raise HTTPException(status_code=400, detail="Missing state parameter")
             
         if not all([SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI]):
             raise HTTPException(status_code=500, detail="Spotify configuration incomplete")
@@ -77,21 +91,63 @@ async def spotify_callback(code: str):
             
         expires_at = int(time.time()) + expires_in if expires_in else None
 
-        return {
+        # Store tokens in database
+        user_id = state
+        query_state_exists = "SELECT 1 FROM users_spotify_auth_tokens WHERE user_id = :user_id"
+
+        user_exists = await database.fetch_val(query=query_state_exists, values={"user_id": user_id})
+
+        if user_exists:
+            query = """
+                UPDATE users_spotify_auth_tokens
+                SET access_token = :access_token,
+                    refresh_token = :refresh_token,
+                    expires_at = :expires_at
+                WHERE user_id = :user_id
+            """
+        else:
+            query = """
+                INSERT INTO users_spotify_auth_tokens (user_id, access_token, refresh_token, expires_at)
+                VALUES (:user_id, :access_token, :refresh_token, :expires_at)
+            """
+
+        await database.execute(query, {
+            "user_id": user_id,
             "access_token": access_token,
             "refresh_token": refresh_token,
-            "expires_in": expires_in,
-            "expires_at": expires_at,
-        }
+            "expires_at": expires_at
+        })
         
-    except HTTPException:
-        raise
+        # Redirect to frontend with success indicator
+        redirect_url = f"{FRONTEND_URL}/browse?spotify_connected=true"
+        return RedirectResponse(url=redirect_url)
+        
+    except HTTPException as http_ex:
+        raise http_ex
     except requests.RequestException as e:
         logging.error(f"Request error in spotify_callback: {str(e)}")
         raise HTTPException(status_code=502, detail="Failed to communicate with Spotify")
     except Exception as e:
-        logging.error(f"Error in spotify_callback: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to process Spotify callback")
+        logging.error(f"Unexpected error in spotify_callback: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error during Spotify authentication")
+
+
+@router.get("/status")
+async def spotify_status(user: dict = Depends(current_user)):
+    """Check if user has connected their Spotify account"""
+    try:
+        user_id = user["id"]
+        
+        query = """
+            SELECT user_id FROM users_spotify_auth_tokens WHERE user_id = :user_id
+        """
+        result = await database.fetch_one(query=query, values={"user_id": user_id})
+        
+        return {"connected": result is not None}
+        
+    except Exception as e:
+        logging.error(f"Error checking Spotify status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to check Spotify connection status")
 
 @router.get("/refresh")
 async def refresh_access_token(refresh_token: str):
