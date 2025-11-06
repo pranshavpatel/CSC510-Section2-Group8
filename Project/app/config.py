@@ -20,6 +20,13 @@ class Settings(BaseSettings):
         default_factory=lambda: ["http://localhost:5173"]
     )
 
+    # S3/Tigris Configuration
+    AWS_ACCESS_KEY_ID: Optional[str] = None
+    AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_ENDPOINT_URL: Optional[str] = None
+    AWS_REGION: str = "auto"
+    S3_BUCKET_NAME: Optional[str] = None
+
     # Derived (not read from env)
     ASYNC_DATABASE_URL: Optional[str] = None  # computed from DATABASE_URL
 
