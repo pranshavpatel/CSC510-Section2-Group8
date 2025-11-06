@@ -310,21 +310,6 @@ export async function updateProfile(data: { name?: string }) {
   return response.json()
 }
 
-/**
- * Delete user account
- */
-export async function deleteAccount() {
-  const response = await authenticatedFetch(`${API_BASE_URL}/auth/me`, {
-    method: "DELETE",
-  })
-  
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.detail || "Failed to delete account")
-  }
-  
-  return response.json()
-}
 
 /**
  * Logout user (invalidate session)
@@ -349,5 +334,98 @@ export async function logoutUser() {
   }
   
   return response.json()
+}
+/**
+ * Delete user account
+ */
+export async function deleteAccount() {
+  const response = await authenticatedFetch(`${API_BASE_URL}/auth/me`, {
+    method: "DELETE",
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || "Failed to delete account")
+  }
+  
+  return response.json()
+}
+// ==================== OWNER MEALS API ====================
+
+/**
+ * Get all meals for the owner's restaurant
+ */
+export async function getOwnerMeals() {
+  const response = await authenticatedFetch(`${API_BASE_URL}/owner/meals`)
+  
+  if (!response.ok) {
+    throw new Error("Failed to fetch owner meals")
+  }
+  
+  return response.json()
+}
+
+
+export async function createMeal(mealData: {
+  name: string
+  tags?: string[]
+  base_price: number
+  quantity: number
+  surplus_price?: number
+  allergens?: string[]
+  calories?: number
+  image_link?: string
+}) {
+  const response = await authenticatedFetch(`${API_BASE_URL}/owner/meals`, {
+    method: "POST",
+    body: JSON.stringify(mealData),
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || "Failed to create meal")
+  }
+  
+  return response.json()
+}
+
+
+export async function updateMeal(mealId: string, mealData: {
+  name?: string
+  tags?: string[]
+  base_price?: number
+  quantity?: number
+  surplus_price?: number
+  allergens?: string[]
+  calories?: number
+  image_link?: string
+}) {
+  const response = await authenticatedFetch(`${API_BASE_URL}/owner/meals/${mealId}`, {
+    method: "PUT",
+    body: JSON.stringify(mealData),
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || "Failed to update meal")
+  }
+  
+  return response.json()
+}
+
+/**
+ * Delete a meal
+ */
+export async function deleteMeal(mealId: string) {
+  const response = await authenticatedFetch(`${API_BASE_URL}/owner/meals/${mealId}`, {
+    method: "DELETE",
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || "Failed to delete meal")
+  }
+  
+  return true
 }
 

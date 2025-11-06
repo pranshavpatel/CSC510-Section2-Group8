@@ -96,6 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const data = await response.json()
+    
+    // Owner signup automatically logs in, so we don't need to fetch /me
+    // The backend already sets role='owner' for owner signups
     return data
   }
 
@@ -119,11 +122,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("access_token", data.access_token)
     localStorage.setItem("refresh_token", data.refresh_token)
     
+    // Fetch user's role from /me endpoint
+    const meResponse = await fetch(`${API_BASE_URL}/me`, {
+      headers: {
+        "Authorization": `Bearer ${data.access_token}`,
+      },
+    })
+    
+    let role: "customer" | "owner" = "customer"
+    if (meResponse.ok) {
+      const meData = await meResponse.json()
+      role = meData.role || "customer"
+    }
+    
     const userData: User = {
       id: data.user.id,
       email: data.user.email,
       name: data.user.name,
-      role: "customer",
+      role: role,
     }
     
     localStorage.setItem("user", JSON.stringify(userData))

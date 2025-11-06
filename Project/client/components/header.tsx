@@ -14,7 +14,6 @@ export function Header() {
     { href: "/", label: "Home" },
     { href: "/browse", label: "Deals" },
     { href: "/map", label: "Map" },
-    { href: "/recommendations", label: "Recommendations" },
     ...(user?.role === "owner" ? [{ href: "/owner", label: "Dashboard" }] : []),
   ]
 
