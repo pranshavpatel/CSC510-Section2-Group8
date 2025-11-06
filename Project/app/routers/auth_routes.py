@@ -28,6 +28,16 @@ class SignupRequest(BaseModel):
     name: str
 
 
+class OwnerSignupRequest(BaseModel):
+    email: EmailStr
+    password: str
+    name: str
+    restaurant_name: str
+    restaurant_address: str
+    latitude: float
+    longitude: float
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str
 
@@ -62,15 +72,17 @@ async def ensure_app_user(
     q_by_email = text("select id from users where email=:email")
     row2 = (await db.execute(q_by_email, {"email": email})).mappings().first()
     if row2:
+        # User exists by email - just update name and email, DO NOT update ID
+        # (ID is immutable and may be referenced by foreign keys)
         upd = text(
             """
             update users
-            set id=:uid,
-                name = coalesce(:name, name)
+            set name = coalesce(:name, name),
+                email = :email
             where email=:email
             """
         )
-        await db.execute(upd, {"uid": user_id, "email": email, "name": name})
+        await db.execute(upd, {"email": email, "name": name})
         return
 
     # 3) neither exists → insert
@@ -133,6 +145,103 @@ async def signup(payload: SignupRequest, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
     return {"id": user_id, "email": user_email, "name": payload.name}
+
+
+@router.post("/owner/signup")
+async def owner_signup(payload: OwnerSignupRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Sign up a new restaurant owner.
+    Creates:
+    1. User account via Supabase Auth
+    2. User record in local DB with role='owner'
+    3. Restaurant record linked to the owner
+    4. Restaurant staff entry linking owner to restaurant
+    """
+    # Step 1: Sign up via Supabase Auth
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        r = await client.post(
+            f"{settings.SUPABASE_URL}/auth/v1/signup",
+            headers={
+                "apikey": settings.SUPABASE_ANON_KEY or "",
+                "Content-Type": "application/json",
+            },
+            json={"email": payload.email, "password": payload.password, "data": {"name": payload.name}},
+        )
+    if r.status_code >= 400:
+        # Pass through Supabase error to caller
+        try:
+            err = r.json()
+        except Exception:
+            err = {"message": r.text}
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
+
+    data = r.json()
+    # Sign-up response may return either {user: {...}} or flat fields depending on GoTrue version
+    user_id = data.get("id") or (data.get("user") or {}).get("id")
+    user_email = data.get("email") or (data.get("user") or {}).get("email")
+
+    if not user_id or not user_email:
+        raise HTTPException(status_code=500, detail="unexpected signup response from auth provider")
+
+    # Step 2: Create user, restaurant, and restaurant_staff in a transaction
+    try:
+        # Insert user with role='owner'
+        ins_user = text(
+            """
+            insert into users (id, email, name, role)
+            values (:uid, :email, :name, 'owner')
+            on conflict (id) do update
+            set name = excluded.name, email = excluded.email, role = 'owner'
+            """
+        )
+        await db.execute(ins_user, {"uid": user_id, "email": user_email, "name": payload.name})
+        
+        # Insert restaurant
+        ins_restaurant = text(
+            """
+            insert into restaurants (name, address, owner_id, latitudes, longitudes)
+            values (:name, :address, :owner_id, :lat, :lng)
+            returning id
+            """
+        )
+        result = await db.execute(
+            ins_restaurant,
+            {
+                "name": payload.restaurant_name,
+                "address": payload.restaurant_address,
+                "owner_id": user_id,
+                "lat": payload.latitude,
+                "lng": payload.longitude,
+            }
+        )
+        restaurant_row = result.first()
+        if not restaurant_row:
+            raise HTTPException(status_code=500, detail="failed to create restaurant record")
+        restaurant_id = restaurant_row[0]
+        
+        # Insert restaurant_staff entry
+        ins_staff = text(
+            """
+            insert into restaurant_staff (restaurant_id, user_id, role)
+            values (:restaurant_id, :user_id, 'owner')
+            """
+        )
+        await db.execute(ins_staff, {"restaurant_id": restaurant_id, "user_id": user_id})
+        
+        await db.commit()
+        
+        return {
+            "id": user_id,
+            "email": user_email,
+            "name": payload.name,
+            "restaurant_id": str(restaurant_id),
+            "restaurant_name": payload.restaurant_name
+        }
+    except Exception as e:
+        await db.rollback()
+        # If database transaction fails, we should ideally delete the Supabase user
+        # but for now, we'll just report the error
+        raise HTTPException(status_code=500, detail=f"Failed to create owner account: {str(e)}")
 
 
 @router.post("/login")
