@@ -326,3 +326,28 @@ export async function deleteAccount() {
   return response.json()
 }
 
+/**
+ * Logout user (invalidate session)
+ */
+export async function logoutUser() {
+  const accessToken = localStorage.getItem("access_token")
+  
+  if (!accessToken) {
+    return { ok: true }
+  }
+  
+  const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${accessToken}`,
+    },
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || "Failed to logout")
+  }
+  
+  return response.json()
+}
+
