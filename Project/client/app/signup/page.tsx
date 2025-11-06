@@ -168,11 +168,11 @@ export default function SignupPage() {
               <p className="text-xs text-muted-foreground">
                 List your surplus food and reduce waste
               </p>
-              <Link href="/owner/signup">
-                <Button variant="outline" className="w-full">
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/owner/signup">
                   Create Restaurant Account
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
