@@ -13,11 +13,11 @@
 ---
 
 ## Tech Stack
-**Backend:** FastAPI · SQLAlchemy · Supabase · PostgreSQL  
-**Frontend:** Next.js (Typescript + Tailwind)  
-**AI Module:** Spotify Mood-to-Food Recommender (LLM-based)  
-**Testing:** Pytest · Jest   
-**Deployment:** Vercel · Render
+- **Backend:** FastAPI · SQLAlchemy · Supabase · PostgreSQL  
+- **Frontend:** Next.js (Typescript + Tailwind)  
+- **AI Module:** Spotify Mood-to-Food Recommender (LLM-based)  
+- **Testing:** Pytest · Jest   
+- **Deployment:** Vercel · Render
 
 ---
 
@@ -46,16 +46,22 @@ npm install
 npm run dev
 ```
 Backend → http://localhost:8000
+
 Frontend → http://localhost:3000
 
 ---
 
 ## Features
 🔐 Supabase-based Authentication with local JWT fallback
+
 🧠 Mood-to-Food LLM Recommender based on current playing music
+
 🛒 Real-time Cart & Order System with surplus pricing
+
 🍱 Restaurant & Meal Catalog
+
 💬 Discord Support Channel for users and developers
+
 🧪 100 + tests covering nominal & off-nominal cases
 
 ---
@@ -83,21 +89,27 @@ npm test
 
 ## Documentation
 Detailed Doc: /docs
+
 User Guide: step-by-step usage(on support page of software), troubleshooting, and FAQs
+
 Developer Guide: schema, routes, and integration patterns
 
 ---
 
 ## Release History
 Version	Date	Key Features
+
 1.0.0	Nov 2025	Initial public release
 
 ---
 
 ## Project Roadmap
 Timeline	Milestone
+
 1 month	Async Spotify API via httpx + Refined LLM workflow
+
 2 month	Restaurant analytics dashboard + stock prediction
+
 4 months	PWA mobile release + Conversational ordering agent
 
 ---
@@ -118,6 +130,7 @@ If funded, future goals include:
 
 ## Contributing
 We welcome pull requests!
+
 Please see CONTRIBUTING.md for coding standards, PR workflow, and governance model.
 
 ---
