@@ -159,6 +159,23 @@ export default function SignupPage() {
             </p>
           </CardContent>
         </Card>
+
+        {/* Owner Portal Link */}
+        <Card className="border-dashed">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-2">
+              <p className="text-sm font-medium">Restaurant Owner?</p>
+              <p className="text-xs text-muted-foreground">
+                List your surplus food and reduce waste
+              </p>
+              <Link href="/owner/signup">
+                <Button variant="outline" className="w-full">
+                  Create Restaurant Account
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

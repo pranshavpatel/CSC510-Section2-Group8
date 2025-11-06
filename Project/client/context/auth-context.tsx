@@ -11,10 +11,18 @@ interface User {
   role: "customer" | "owner"
 }
 
+interface RestaurantDetails {
+  name: string
+  address: string
+  latitude: number
+  longitude: number
+}
+
 interface AuthContextType {
   user: User | null
   login: (email: string, password: string) => Promise<void>
   signup: (email: string, password: string, name: string) => Promise<void>
+  ownerSignup: (email: string, password: string, name: string, restaurant: RestaurantDetails) => Promise<void>
   logout: () => void
   isAuthenticated: boolean
   isLoading: boolean
@@ -60,6 +68,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data
   }
 
+  const ownerSignup = async (
+    email: string,
+    password: string,
+    name: string,
+    restaurant: RestaurantDetails
+  ) => {
+    const response = await fetch(`${API_BASE_URL}/auth/owner/signup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        name,
+        restaurant_name: restaurant.name,
+        restaurant_address: restaurant.address,
+        latitude: restaurant.latitude,
+        longitude: restaurant.longitude,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || "Owner signup failed")
+    }
+
+    const data = await response.json()
+    return data
+  }
+
   const login = async (email: string, password: string) => {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
@@ -99,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isAuthenticated: !!user, isLoading }}>
+    <AuthContext.Provider value={{ user, login, signup, ownerSignup, logout, isAuthenticated: !!user, isLoading }}>
       {children}
     </AuthContext.Provider>
   )
