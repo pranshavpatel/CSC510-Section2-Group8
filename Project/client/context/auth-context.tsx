@@ -23,7 +23,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   signup: (email: string, password: string, name: string) => Promise<void>
   ownerSignup: (email: string, password: string, name: string, restaurant: RestaurantDetails) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   isAuthenticated: boolean
   isLoading: boolean
 }
@@ -130,7 +130,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(userData)
   }
 
-  const logout = () => {
+  const logout = async () => {
+    const accessToken = localStorage.getItem("access_token")
+    
+    // Call backend logout API
+    if (accessToken) {
+      try {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+          },
+        })
+      } catch (error) {
+        console.error("Logout API error:", error)
+      }
+    }
+    
+    // Clear local storage and state
     localStorage.removeItem("access_token")
     localStorage.removeItem("refresh_token")
     localStorage.removeItem("user")
