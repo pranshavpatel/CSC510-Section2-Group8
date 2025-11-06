@@ -1,12 +1,39 @@
-databases==0.9.0
+# Core Framework
 fastapi==0.120.4
-httpx==0.28.1
-python-jose[cryptography]==3.3.0
+uvicorn==0.38.0
 pydantic==2.12.3
 pydantic_settings==2.11.0
 python-dotenv==1.2.1
-Requests==2.32.5
+
+# Database
 SQLAlchemy==2.0.25
-uvicorn==0.38.0
 alembic==1.17.1
 asyncpg==0.30.0
+databases==0.9.0
+
+# HTTP & API
+httpx==0.28.1
+requests==2.32.5
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+
+# Spotify Integration
+spotipy==2.24.0
+
+# AI/ML
+groq==0.13.0
+numpy==1.26.4
+
+# Testing
+pytest==8.4.2
+pytest-asyncio==0.24.0
+pytest-mock==3.14.0
+pytest-cov==7.0.0
+pytest-respx==0.22.0
+pytest-langsmith==0.4.25
+pytest-anyio==4.10.0
+
+# Performance Monitoring
+psutil==5.9.8
+memory-profiler==0.61.0
