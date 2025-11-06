@@ -39,6 +39,11 @@ export default function HomePage() {
                 <Link href="/browse">Browse Deals</Link>
               </Button>
             </div>
+            <div className="mt-4">
+              <Link href="/support" className="text-sm text-muted-foreground hover:text-primary">
+                Need help? Visit our support center
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -80,6 +85,20 @@ export default function HomePage() {
                 Every order helps reduce food waste and supports sustainable practices
               </CardDescription>
             </CardHeader>
+          </Card>
+
+          <Card className="border-2 hover:border-primary/50 transition-colors cursor-pointer">
+            <Link href="/support">
+              <CardHeader>
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 mb-4">
+                  <Heart className="h-6 w-6 text-primary" />
+                </div>
+                <CardTitle>24/7 Support</CardTitle>
+                <CardDescription className="leading-relaxed">
+                  Get help anytime with our comprehensive support center and community
+                </CardDescription>
+              </CardHeader>
+            </Link>
           </Card>
         </div>
       </section>
