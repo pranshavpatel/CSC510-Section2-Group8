@@ -278,3 +278,51 @@ export async function getMoodRecommendations(restaurantId: string) {
   return response.json()
 }
 
+// ==================== PROFILE API ====================
+
+/**
+ * Get current user profile
+ */
+export async function getProfile() {
+  const response = await authenticatedFetch(`${API_BASE_URL}/me`)
+  
+  if (!response.ok) {
+    throw new Error("Failed to fetch profile")
+  }
+  
+  return response.json()
+}
+
+/**
+ * Update user profile
+ */
+export async function updateProfile(data: { name?: string }) {
+  const response = await authenticatedFetch(`${API_BASE_URL}/me`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || "Failed to update profile")
+  }
+  
+  return response.json()
+}
+
+/**
+ * Delete user account
+ */
+export async function deleteAccount() {
+  const response = await authenticatedFetch(`${API_BASE_URL}/auth/me`, {
+    method: "DELETE",
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || "Failed to delete account")
+  }
+  
+  return response.json()
+}
+

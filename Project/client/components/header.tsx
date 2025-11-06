@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/auth-context"
-import { Leaf, LogOut, ShoppingCart, Package } from "lucide-react"
+import { Leaf, LogOut, ShoppingCart, Package, User } from "lucide-react"
 
 export function Header() {
   const pathname = usePathname()
@@ -67,7 +67,17 @@ export function Header() {
                   </Button>
                 )
               })}
-              <span className="text-sm text-muted-foreground hidden lg:inline">{user?.name}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className={pathname === "/profile" ? "bg-accent" : ""}
+              >
+                <Link href="/profile">
+                  <User className="h-4 w-4 md:mr-2" />
+                  <span className="hidden md:inline">{user?.name || "Profile"}</span>
+                </Link>
+              </Button>
               <Button variant="outline" size="sm" onClick={logout}>
                 <LogOut className="h-4 w-4 md:mr-2" />
                 <span className="hidden md:inline">Logout</span>
