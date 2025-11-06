@@ -13,8 +13,8 @@ interface Restaurant {
   id: string
   name: string
   address: string
-  latitudes: number
-  longitudes: number
+  latitude: number
+  longitude: number
 }
 
 interface MapViewProps {
@@ -29,8 +29,8 @@ export function MapView({ restaurants, onRestaurantSelect }: MapViewProps) {
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null)
 
   // Calculate center point from all restaurants
-  const centerLng = restaurants.reduce((sum, restaurant) => sum + restaurant.longitudes, 0) / restaurants.length 
-  const centerLat = restaurants.reduce((sum, restaurant) => sum + restaurant.latitudes, 0) / restaurants.length 
+  const centerLng = restaurants.reduce((sum, restaurant) => sum + restaurant.longitude, 0) / restaurants.length 
+  const centerLat = restaurants.reduce((sum, restaurant) => sum + restaurant.latitude, 0) / restaurants.length 
 
   useEffect(() => {
     if (!mapContainer.current) return
@@ -73,7 +73,7 @@ export function MapView({ restaurants, onRestaurantSelect }: MapViewProps) {
       `
       
       const marker = new mapboxgl.Marker(el)
-        .setLngLat([restaurant.longitudes, restaurant.latitudes])
+        .setLngLat([restaurant.longitude, restaurant.latitude])
         .setPopup(
           new mapboxgl.Popup({ offset: 25 })
             .setHTML(`

@@ -47,22 +47,22 @@ describe('MapPage', () => {
       id: '1',
       name: 'Restaurant One',
       address: '123 Main St',
-      latitudes: 40.7128,
-      longitudes: -74.0060,
+      latitude: 40.7128,
+      longitude: -74.0060,
     },
     {
       id: '2',
       name: 'Restaurant Two',
       address: '456 Oak Ave',
-      latitudes: 40.7580,
-      longitudes: -73.9855,
+      latitude: 40.7580,
+      longitude: -73.9855,
     },
     {
       id: '3',
       name: 'Restaurant Three',
       address: '789 Pine Rd',
-      latitudes: 40.7489,
-      longitudes: -73.9680,
+      latitude: 40.7489,
+      longitude: -73.9680,
     },
   ]
 
@@ -284,8 +284,8 @@ describe('MapPage', () => {
         id: 'custom-id-123',
         name: 'Custom Restaurant',
         address: '999 Custom St',
-        latitudes: 40.7128,
-        longitudes: -74.0060,
+        latitude: 40.7128,
+        longitude: -74.0060,
       },
     ]
 

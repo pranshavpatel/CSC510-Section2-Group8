@@ -8,8 +8,8 @@ interface Restaurant {
   id: string
   name: string
   address: string
-  latitudes: number
-  longitudes: number
+  latitude: number
+  longitude: number
 }
 
 export default function MapPage() {

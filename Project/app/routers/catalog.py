@@ -43,8 +43,8 @@ async def list_restaurants(
             id,
             name,
             address,
-            latitudes,
-            longitudes
+            latitude,
+            longitude
         from restaurants
         {where_clause}
         order by {orderby}

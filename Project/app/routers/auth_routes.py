@@ -199,7 +199,7 @@ async def owner_signup(payload: OwnerSignupRequest, db: AsyncSession = Depends(g
         # Insert restaurant
         ins_restaurant = text(
             """
-            insert into restaurants (name, address, owner_id, latitudes, longitudes)
+            insert into restaurants (name, address, owner_id, latitude, longitude)
             values (:name, :address, :owner_id, :lat, :lng)
             returning id
             """
