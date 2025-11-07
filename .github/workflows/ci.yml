@@ -89,6 +89,10 @@ jobs:
 
       - name: Run frontend tests
         working-directory: Project/client
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.NEXT_PUBLIC_MAPBOX_TOKEN }}
+          HASH_SALT: ${{ secrets.HASH_SALT}}
         run: |
           npm test -- --coverage --coverageReporters=lcov
 
