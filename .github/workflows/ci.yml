@@ -63,6 +63,8 @@ jobs:
           files: ./Project/coverage.xml
           flags: backend
           name: backend-coverage
+          fail_ci_if_error: false
+          disable_search: true
 
   frontend:
     name: Frontend (Next.js) CI
@@ -103,3 +105,5 @@ jobs:
           files: ./Project/client/coverage/lcov.info
           flags: frontend
           name: frontend-coverage
+          fail_ci_if_error: false
+          disable_search: true
