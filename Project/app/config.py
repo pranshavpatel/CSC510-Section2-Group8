@@ -54,11 +54,18 @@ class Settings(BaseSettings):
 
         # Build an async URL for SQLAlchemy if needed
         url = self.DATABASE_URL
+        # Handle postgres:// (old Heroku style)
         if url.startswith("postgres://"):
-            # old Heroku-style -> proper driver prefix
-            url = "postgresql://" + url[len("postgres://"):]
-        if url.startswith("postgresql://") and "+asyncpg" not in url:
+            url = "postgresql+asyncpg://" + url[len("postgres://"):]
+        # Handle postgresql:// without driver
+        elif url.startswith("postgresql://") and "+" not in url:
             url = "postgresql+asyncpg://" + url[len("postgresql://"):]
+        # Handle postgresql+asyncpg:// (already correct)
+        elif url.startswith("postgresql+asyncpg://"):
+            pass  # already correct
+        # Handle any other postgresql+driver:// by replacing driver
+        elif url.startswith("postgresql+"):
+            url = "postgresql+asyncpg://" + url.split("://", 1)[1]
         self.ASYNC_DATABASE_URL = url
 
         return self
