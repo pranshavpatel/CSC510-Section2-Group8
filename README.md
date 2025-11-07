@@ -1,19 +1,32 @@
-[![CI/CD Pipeline](https://github.com/pranshavpatel/CSC510-Section2-Group8/blob/main/Project/.github/workflows/ci.yml/badge.svg)
+[![CI/CD Pipeline](https://github.com/pranshavpatel/CSC510-Section2-Group8/actions/workflows/ci.yml/badge.svg)](https://github.com/pranshavpatel/CSC510-Section2-Group8/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/github/pranshavpatel/CSC510-Section2-Group8/graph/badge.svg)](https://codecov.io/github/pranshavpatel/CSC510-Section2-Group8)
 [![Issues](https://img.shields.io/github/issues/pranshavpatel/CSC510-Section2-Group8)](https://github.com/pranshavpatel/CSC510-Section2-Group8/issues)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17549260.svg)](https://doi.org/10.5281/zenodo.17549260)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/pranshavpatel/CSC510-Section2-Group8/blob/main/LICENSE)
 
+[![Pull Requests](https://img.shields.io/github/issues-pr/pranshavpatel/CSC510-Section2-Group8)](https://github.com/pranshavpatel/CSC510-Section2-Group8/pulls)
+[![Contributors](https://img.shields.io/github/contributors/pranshavpatel/CSC510-Section2-Group8)](https://github.com/pranshavpatel/CSC510-Section2-Group8/graphs/contributors)
+[![Last Commit](https://img.shields.io/github/last-commit/pranshavpatel/CSC510-Section2-Group8)](https://github.com/pranshavpatel/CSC510-Section2-Group8/commits/main)
+[![Repo Size](https://img.shields.io/github/repo-size/pranshavpatel/CSC510-Section2-Group8)](https://github.com/pranshavpatel/CSC510-Section2-Group8)
 <!-- Frontend Code Quality Tool Badges -->
 [![Code Style: Prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
 [![Type Checker: TypeScript](https://img.shields.io/badge/type_checker-typescript-blue)](https://www.typescriptlang.org/)
 [![Testing: Jest](https://img.shields.io/badge/testing-jest-red)](https://jestjs.io/)
+
+[![Python Version](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/)
+[![Node Version](https://img.shields.io/badge/node-20+-green)](https://nodejs.org/)
+[![FastAPI](https://img.shields.io/badge/framework-fastapi-009688)](https://fastapi.tiangolo.com/)
+[![Next.js](https://img.shields.io/badge/framework-next.js-black)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/typescript-blue)](https://www.typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/database-postgresql-blue)](https://www.postgresql.org/)
 
 <!-- Backend Code Quality Tool Badges -->
 [![Linting: Flake8](https://img.shields.io/badge/linting-flake8-yellowgreen)](https://flake8.pycqa.org/)
 [![Testing: Pytest](https://img.shields.io/badge/testing-pytest-blue)](https://pytest.org/)
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/framework-fastapi-009688)](https://fastapi.tiangolo.com/)
+
+
 
 # VibeDish🎵🍽️ — Eat Smart. Save Food. Feel Good.
 
