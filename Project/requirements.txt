@@ -4,6 +4,7 @@ uvicorn==0.38.0
 pydantic==2.12.3
 pydantic_settings==2.11.0
 python-dotenv==1.2.1
+email-validator==2.1.0
 
 # Database
 SQLAlchemy==2.0.36
@@ -21,6 +22,7 @@ boto3==1.35.0
 
 # Authentication & Security
 python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
 
 # Spotify Integration
 spotipy==2.24.0
