@@ -353,6 +353,19 @@ export async function deleteAccount() {
 // ==================== OWNER MEALS API ====================
 
 /**
+ * Get restaurant details for the owner
+ */
+export async function getMyRestaurant() {
+  const response = await authenticatedFetch(`${API_BASE_URL}/owner/restaurant`)
+  
+  if (!response.ok) {
+    throw new Error("Failed to fetch restaurant details")
+  }
+  
+  return response.json()
+}
+
+/**
  * Get all meals for the owner's restaurant
  */
 export async function getOwnerMeals() {

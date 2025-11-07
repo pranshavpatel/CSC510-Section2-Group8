@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Plus, Pencil, Trash2, Package, Upload, X } from "lucide-react"
-import { getOwnerMeals, createMeal, updateMeal, deleteMeal, getPresignedUploadUrl, uploadFileToS3, deleteImageFromS3 } from "@/lib/api"
+import { getMyRestaurant, getOwnerMeals, createMeal, updateMeal, deleteMeal, getPresignedUploadUrl, uploadFileToS3, deleteImageFromS3 } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 
 interface Meal {
@@ -227,6 +227,8 @@ function MealForm({ formData, setFormData, imageUploadState, onImageSelect, onIm
 export default function OwnerDashboard() {
   const [meals, setMeals] = useState<Meal[]>([])
   const [loading, setLoading] = useState(true)
+  const [restaurantName, setRestaurantName] = useState<string>("")
+  const [restaurantAddress, setRestaurantAddress] = useState<string>("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -243,8 +245,20 @@ export default function OwnerDashboard() {
   const { toast } = useToast()
 
   useEffect(() => {
+    loadRestaurant()
     loadMeals()
   }, [])
+
+  const loadRestaurant = async () => {
+    try {
+      const data = await getMyRestaurant()
+      setRestaurantName(data.name || "")
+      setRestaurantAddress(data.address || "")
+    } catch (error) {
+      console.error("Failed to load restaurant:", error)
+      // Don't show error toast for restaurant name, just log it
+    }
+  }
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -610,8 +624,13 @@ export default function OwnerDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Restaurant Dashboard</h1>
-          <p className="text-muted-foreground">Manage your surplus inventory</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {restaurantName ? restaurantName : "Restaurant Dashboard"}
+          </h1>
+          {restaurantAddress && (
+            <p className="text-muted-foreground">{restaurantAddress}</p>
+          )}
+          <p className="text-sm text-muted-foreground">Manage your surplus inventory</p>
         </div>
         
         <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
