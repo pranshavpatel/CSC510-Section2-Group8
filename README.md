@@ -1,7 +1,7 @@
 [![CI/CD Pipeline](https://github.com/pranshavpatel/CSC510-Section2-Group8/actions/workflows/ci.yml/badge.svg)](https://github.com/pranshavpatel/CSC510-Section2-Group8/Project/.github/workflows/ci.yml)
 [![codecov](https://codecov.io/github/pranshavpatel/CSC510-Section2-Group8/graph/badge.svg)](https://codecov.io/github/pranshavpatel/CSC510-Section2-Group8)
 [![Issues](https://img.shields.io/github/issues/pranshavpatel/CSC510-Section2-Group8)](https://github.com/pranshavpatel/CSC510-Section2-Group8/issues)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/pranshavpatel/CSC510-Section2-Group8/LICENSEmd)
 
 <!-- Frontend Code Quality Tool Badges -->
 [![Code Style: Prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
