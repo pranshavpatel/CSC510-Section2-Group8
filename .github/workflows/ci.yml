@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [ main]
+  pull_request:
+    branches: [ main]
+
+jobs:
+  backend:
+    name: Backend (FastAPI) CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            .venv
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+
+      - name: Install Python dependencies
+        working-directory: Project
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint (flake8)
+        if: always()
+        working-directory: Project
+        run: |
+          source .venv/bin/activate
+          pip install flake8
+          flake8 || true
+
+      - name: Run backend tests
+        working-directory: Project
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_Key }}
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REDIRECT_URI: ${{ secrets.SPOTIFY_REDIRECT_URI }}
+          SPOTIFY_SCOPES: ${{ secrets.SPOTIFY_SCOPES }}
+        run: |
+          source .venv/bin/activate
+          pip install pytest pytest-cov
+          pytest tests/ --cov=Mood2FoodRecSys --cov=app/routers --cov-report=xml --cov-report=term
+
+      - name: Upload backend coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./Project/coverage.xml
+          flags: backend
+          name: backend-coverage
+
+  frontend:
+    name: Frontend (Next.js) CI
+    runs-on: ubuntu-latest
+    needs: backend
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install frontend deps
+        working-directory: client
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            npm install -g pnpm
+            pnpm install
+          else
+            npm ci
+          fi
+
+      - name: Build frontend
+        working-directory: client
+        run: |
+          if [ -f package.json ]; then
+            npm run build --if-present
+          else
+            echo "No frontend package.json found — skipping build"
+          fi
+
+      - name: Run frontend tests
+        working-directory: Project/client
+        run: |
+          npm test -- --coverage --coverageReporters=lcov
+
+      - name: Upload frontend coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./Project/client/coverage/lcov.info
+          flags: frontend
+          name: frontend-coverage
