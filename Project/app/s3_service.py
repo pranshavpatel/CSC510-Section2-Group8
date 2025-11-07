@@ -26,9 +26,12 @@ class S3Service:
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
             aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
             region_name=settings.AWS_REGION,
-            config=Config(signature_version='s3v4')
+            config=Config(s3={'addressing_style': 'virtual'})
         )
         self.bucket_name = settings.S3_BUCKET_NAME
+        # Extract base domain from endpoint URL for virtual-hosted-style URLs
+        # e.g., https://fly.storage.tigris.dev -> fly.storage.tigris.dev
+        self.base_domain = settings.AWS_ENDPOINT_URL.replace('https://', '').replace('http://', '')
     
     def generate_unique_filename(self, original_filename: str) -> str:
         """Generate a unique filename to prevent collisions"""
@@ -63,8 +66,9 @@ class S3Service:
                 HttpMethod='PUT'
             )
             
-            # Generate the public URL for GET operations
-            public_url = f"{settings.AWS_ENDPOINT_URL}/{self.bucket_name}/{object_key}"
+            # Generate the public URL for GET operations using virtual-hosted-style
+            # Format: https://{bucket}.{base_domain}/{key}
+            public_url = f"https://{self.bucket_name}.{self.base_domain}/{object_key}"
             
             return presigned_url, public_url
         except ClientError as e:
@@ -83,14 +87,24 @@ class S3Service:
         try:
             # Extract object key from URL
             if image_url.startswith('http'):
-                # Parse the key from the full URL
-                # Format: https://endpoint/bucket/key
-                parts = image_url.split(f"/{self.bucket_name}/")
-                if len(parts) == 2:
-                    object_key = parts[1]
+                # Parse the key from virtual-hosted-style URL
+                # Format: https://{bucket}.{base_domain}/{key}
+                # or path-style: https://{endpoint}/{bucket}/{key}
+                if f"{self.bucket_name}.{self.base_domain}" in image_url:
+                    # Virtual-hosted-style
+                    parts = image_url.split(f"{self.bucket_name}.{self.base_domain}/")
+                    if len(parts) == 2:
+                        object_key = parts[1]
+                    else:
+                        object_key = '/'.join(image_url.split('/')[3:])
                 else:
-                    # Try alternative parsing
-                    object_key = image_url.split('/')[-2] + '/' + image_url.split('/')[-1]
+                    # Try path-style parsing
+                    parts = image_url.split(f"/{self.bucket_name}/")
+                    if len(parts) == 2:
+                        object_key = parts[1]
+                    else:
+                        # Fallback: assume last part is the key
+                        object_key = '/'.join(image_url.split('/')[3:])
             else:
                 # Assume it's already an object key
                 object_key = image_url
