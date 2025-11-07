@@ -33,9 +33,7 @@ pytest==8.4.2
 pytest-asyncio==0.24.0
 pytest-mock==3.14.0
 pytest-cov==7.0.0
-pytest-respx==0.22.0
-pytest-langsmith==0.4.25
-pytest-anyio==4.10.0
+respx==0.21.1
 
 # Performance Monitoring
 psutil==5.9.8
