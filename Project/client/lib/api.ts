@@ -1,7 +1,7 @@
 // API utilities for making authenticated requests
 import { authenticatedFetch } from "@/context/auth-context"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "")
 
 /**
  * Example: Get user profile
@@ -448,7 +448,7 @@ export async function deleteMeal(mealId: string) {
  * Get presigned URL for uploading an image
  */
 export async function getPresignedUploadUrl(filename: string, contentType: string) {
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/s3/presigned-upload-url`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/s3/presigned-upload-url`, {
     method: "POST",
     body: JSON.stringify({ filename, content_type: contentType }),
   })
@@ -484,7 +484,7 @@ export async function uploadFileToS3(presignedUrl: string, file: File) {
  * Delete an image from S3
  */
 export async function deleteImageFromS3(imageUrl: string) {
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/s3/delete-image`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/s3/delete-image`, {
     method: "DELETE",
     body: JSON.stringify({ image_url: imageUrl }),
   })
