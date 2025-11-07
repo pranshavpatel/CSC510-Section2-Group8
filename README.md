@@ -33,6 +33,7 @@
 ## Overview
 **VibeDish** is a full-stack, AI-powered meal recommendation and ordering platform that connects **user moods from Spotify** to curated food suggestions from local restaurants. It also reduces food waste by connecting customers with surplus restaurant meals at discounted prices. This project demonstrates how rapidly teams can build intelligent applications using **FastAPI**, **Supabase**, **Next.js**, and **AI-driven recommender systems**.
 
+Deployed at: [Vercel and Render](https://vibedish.vercel.app/)
 ---
 
 ## Intended Users
