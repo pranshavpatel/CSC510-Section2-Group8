@@ -6,8 +6,8 @@ from typing import List, Optional
 
 class Settings(BaseSettings):
     # Required
-    DATABASE_URL: str        # e.g., postgresql://user:pass@localhost:5432/db
-    SUPABASE_URL: str        # e.g., https://your-project.supabase.co
+    DATABASE_URL: str = "postgresql://test:test@localhost:5432/test"
+    SUPABASE_URL: str = "https://test.supabase.co"     
 
     # Optional auth bits
     SUPABASE_JWKS_URL: Optional[str] = None   # derived if not provided
