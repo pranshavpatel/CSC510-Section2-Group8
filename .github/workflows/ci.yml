@@ -77,25 +77,15 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: 'Project/client/package-lock.json'
 
       - name: Install frontend deps
-        working-directory: client
-        run: |
-          if [ -f pnpm-lock.yaml ]; then
-            npm install -g pnpm
-            pnpm install
-          else
-            npm ci
-          fi
+        working-directory: Project/client
+        run: npm ci
 
       - name: Build frontend
-        working-directory: client
-        run: |
-          if [ -f package.json ]; then
-            npm run build --if-present
-          else
-            echo "No frontend package.json found — skipping build"
-          fi
+        working-directory: Project/client
+        run: npm run build --if-present
 
       - name: Run frontend tests
         working-directory: Project/client
