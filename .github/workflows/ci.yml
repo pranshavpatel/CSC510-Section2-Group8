@@ -45,6 +45,12 @@ jobs:
 
       - name: Run backend tests
         working-directory: Project
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_Key }}
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REDIRECT_URI: ${{ secrets.SPOTIFY_REDIRECT_URI }}
+          SPOTIFY_SCOPES: ${{ secrets.SPOTIFY_SCOPES }}
         run: |
           source .venv/bin/activate
           pip install pytest pytest-cov
