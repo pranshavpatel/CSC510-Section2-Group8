@@ -46,11 +46,16 @@ jobs:
           # detect common test patterns in repo
           if git ls-files | grep -E '(^|/)(tests?/|test_).*\.py' -q; then
             source .venv/bin/activate
-            pip install pytest
-            pytest -q
+            pip install pytest pytest-cov
+            pytest --cov=Mood2FoodRecSys --cov=app/routers --cov-report=xml --cov-report=term
           else
             echo "No backend tests found — skipping pytest"
           fi
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   frontend:
     name: Frontend (Next.js) CI
