@@ -111,7 +111,8 @@ async def list_meals_for_restaurant(
             m.quantity,
             m.surplus_price,
             m.allergens,
-            m.calories
+            m.calories,
+            m.image_link
         from meals m
         {where_clause}
         order by {orderby}

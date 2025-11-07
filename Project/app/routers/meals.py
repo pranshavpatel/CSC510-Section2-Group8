@@ -14,7 +14,7 @@ async def list_meals(
 ):
     try:
         q = """
-          select id, restaurant_id, name, tags, base_price, quantity, surplus_price, allergens, calories
+          select id, restaurant_id, name, tags, base_price, quantity, surplus_price, allergens, calories, image_link
           from meals
           {where_clause}
           order by created_at desc

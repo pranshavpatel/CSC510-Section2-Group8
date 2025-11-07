@@ -30,6 +30,7 @@ interface Meal {
   surplus_price: number | null
   allergens: string[]
   calories: number
+  image_link?: string | null
   created_at: string
 }
 
@@ -516,24 +517,45 @@ export default function BrowsePage() {
 
               return (
                 <Card key={meal.id} className="overflow-hidden group hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-1 flex-1">
-                        <CardTitle className="text-lg leading-tight">{meal.name}</CardTitle>
-                        {meal.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {meal.tags.slice(0, 3).map((tag, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                  {/* Meal Image */}
+                  {meal.image_link ? (
+                    <div className="relative w-full h-48 overflow-hidden bg-muted">
+                      <img
+                        src={meal.image_link}
+                        alt={meal.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
                       {hasSurplus && hasSurplusPrice && discountPercent > 0 && (
-                        <Badge className="bg-destructive text-destructive-foreground font-semibold">
+                        <Badge className="absolute top-3 right-3 bg-destructive text-destructive-foreground font-semibold shadow-lg">
                           {discountPercent}% OFF
                         </Badge>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="relative w-full h-48 bg-muted flex items-center justify-center">
+                      <div className="text-center text-muted-foreground">
+                        <UtensilsCrossed className="h-12 w-12 mx-auto mb-2 opacity-40" />
+                        <p className="text-sm">No image available</p>
+                      </div>
+                      {hasSurplus && hasSurplusPrice && discountPercent > 0 && (
+                        <Badge className="absolute top-3 right-3 bg-destructive text-destructive-foreground font-semibold shadow-lg">
+                          {discountPercent}% OFF
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                  
+                  <CardHeader>
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg leading-tight">{meal.name}</CardTitle>
+                      {meal.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {meal.tags.slice(0, 3).map((tag, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </CardHeader>
