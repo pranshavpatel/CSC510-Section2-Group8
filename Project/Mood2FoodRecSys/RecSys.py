@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from app.auth import current_user
 import asyncio
 import logging
+import random
 
 
 router = APIRouter(
@@ -55,6 +56,10 @@ async def get_recommendations(
 
         # now match back
         recommended_full_objects = [item for item in relevant_food_items if str(item["id"]) in recommended_ids]
+        
+        # Randomly limit recommendations to either 3 or 4 items
+        limit = random.choice([3, 4])
+        recommended_full_objects = recommended_full_objects[:limit]
         
         return {"recommended_foods": recommended_full_objects}
         
