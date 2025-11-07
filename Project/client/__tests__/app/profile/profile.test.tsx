@@ -99,9 +99,11 @@ describe('Profile Page', () => {
         () => new Promise(() => {})
       )
 
-      render(<ProfilePage />)
+      const { container } = render(<ProfilePage />)
 
-      expect(screen.getByRole('status')).toBeInTheDocument()
+      // The loading state shows a spinner icon (Loader2 component with animate-spin class)
+      const spinner = container.querySelector('.animate-spin')
+      expect(spinner).toBeInTheDocument()
     })
   })
 

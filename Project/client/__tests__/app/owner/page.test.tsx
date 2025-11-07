@@ -278,7 +278,7 @@ describe('OwnerDashboard', () => {
     fireEvent.click(screen.getByText('Add Meal'))
     
     expect(screen.getByLabelText(/Surplus Price/)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Image URL/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Meal Image/)).toBeInTheDocument()
   })
 
   // Test 27: Form layout
@@ -288,7 +288,7 @@ describe('OwnerDashboard', () => {
     fireEvent.click(screen.getByText('Add Meal'))
     
     // Check that form elements are present
-    expect(screen.getAllByRole('textbox')).toHaveLength(5) // Name, tags, allergens, image
+    expect(screen.getAllByRole('textbox')).toHaveLength(3) // Name, tags, allergens (image is a file input, not textbox)
     expect(screen.getAllByRole('spinbutton')).toHaveLength(4) // Price, surplus, quantity, calories
   })
 
