@@ -25,8 +25,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Plus, Pencil, Trash2, Package } from "lucide-react"
-import { getOwnerMeals, createMeal, updateMeal, deleteMeal } from "@/lib/api"
+import { Plus, Pencil, Trash2, Package, Upload, X } from "lucide-react"
+import { getMyRestaurant, getOwnerMeals, createMeal, updateMeal, deleteMeal, getPresignedUploadUrl, uploadFileToS3, deleteImageFromS3 } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 
 interface Meal {
@@ -64,12 +64,22 @@ const initialFormData: MealFormData = {
   image_link: "",
 }
 
+interface ImageUploadState {
+  file: File | null
+  uploading: boolean
+  uploadedUrl: string | null
+  previewUrl: string | null
+}
+
 interface MealFormProps {
   formData: MealFormData
   setFormData: React.Dispatch<React.SetStateAction<MealFormData>>
+  imageUploadState: ImageUploadState
+  onImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onImageRemove: () => void
 }
 
-function MealForm({ formData, setFormData }: MealFormProps) {
+function MealForm({ formData, setFormData, imageUploadState, onImageSelect, onImageRemove }: MealFormProps) {
   return (
     <div className="grid gap-4">
       <div className="space-y-2">
@@ -165,14 +175,50 @@ function MealForm({ formData, setFormData }: MealFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="image_link">Image URL</Label>
-        <Input
-          id="image_link"
-          type="url"
-          placeholder="https://example.com/image.jpg"
-          value={formData.image_link}
-          onChange={(e) => setFormData({ ...formData, image_link: e.target.value })}
-        />
+        <Label htmlFor="image_file">Meal Image</Label>
+        <div className="flex flex-col gap-2">
+          {imageUploadState.previewUrl || formData.image_link ? (
+            <div className="relative w-full h-48 border rounded-lg overflow-hidden">
+              <img
+                src={imageUploadState.previewUrl || formData.image_link}
+                alt="Meal preview"
+                className="w-full h-full object-cover"
+              />
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="absolute top-2 right-2"
+                onClick={onImageRemove}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <Label
+              htmlFor="image_file"
+              className="block cursor-pointer"
+            >
+              <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary transition-colors">
+                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground hover:text-foreground">
+                  Click to upload meal image
+                </span>
+              </div>
+              <Input
+                id="image_file"
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={onImageSelect}
+                disabled={imageUploadState.uploading}
+              />
+            </Label>
+          )}
+          {imageUploadState.uploading && (
+            <p className="text-sm text-muted-foreground">Uploading image...</p>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -181,17 +227,91 @@ function MealForm({ formData, setFormData }: MealFormProps) {
 export default function OwnerDashboard() {
   const [meals, setMeals] = useState<Meal[]>([])
   const [loading, setLoading] = useState(true)
+  const [restaurantName, setRestaurantName] = useState<string>("")
+  const [restaurantAddress, setRestaurantAddress] = useState<string>("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
   const [formData, setFormData] = useState<MealFormData>(initialFormData)
   const [submitting, setSubmitting] = useState(false)
+  const [imageUploadState, setImageUploadState] = useState<ImageUploadState>({
+    file: null,
+    uploading: false,
+    uploadedUrl: null,
+    previewUrl: null,
+  })
+  const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
+    loadRestaurant()
     loadMeals()
   }, [])
+
+  const loadRestaurant = async () => {
+    try {
+      const data = await getMyRestaurant()
+      setRestaurantName(data.name || "")
+      setRestaurantAddress(data.address || "")
+    } catch (error) {
+      console.error("Failed to load restaurant:", error)
+      // Don't show error toast for restaurant name, just log it
+    }
+  }
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a JPEG, PNG, WebP, or GIF image",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 5MB",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Create local preview URL only
+    const previewUrl = URL.createObjectURL(file)
+    
+    setImageUploadState({
+      file,
+      uploading: false,
+      uploadedUrl: null,
+      previewUrl,
+    })
+  }
+
+  const handleImageRemove = () => {
+    // Clean up preview URL
+    if (imageUploadState.previewUrl) {
+      URL.revokeObjectURL(imageUploadState.previewUrl)
+    }
+    
+    setImageUploadState({
+      file: null,
+      uploading: false,
+      uploadedUrl: null,
+      previewUrl: null,
+    })
+    
+    // Clear image_link in form
+    setFormData({ ...formData, image_link: "" })
+  }
 
   const loadMeals = async () => {
     try {
@@ -209,6 +329,23 @@ export default function OwnerDashboard() {
     }
   }
 
+  const cleanupDialog = () => {
+    // Clean up local preview URL
+    if (imageUploadState.previewUrl) {
+      URL.revokeObjectURL(imageUploadState.previewUrl)
+    }
+
+    setFormData(initialFormData)
+    setImageUploadState({
+      file: null,
+      uploading: false,
+      uploadedUrl: null,
+      previewUrl: null,
+    })
+    setOriginalImageUrl(null)
+    setSelectedMeal(null)
+  }
+
   const handleAddMeal = async () => {
     try {
       setSubmitting(true)
@@ -220,7 +357,36 @@ export default function OwnerDashboard() {
           description: "Name, base price, and quantity are required",
           variant: "destructive",
         })
+        setSubmitting(false)
         return
+      }
+
+      let imageUrl: string | undefined = undefined
+
+      // Upload image to CDN if file is selected
+      if (imageUploadState.file) {
+        try {
+          setImageUploadState(prev => ({ ...prev, uploading: true }))
+          
+          const { upload_url, public_url } = await getPresignedUploadUrl(
+            imageUploadState.file.name,
+            imageUploadState.file.type
+          )
+          
+          await uploadFileToS3(upload_url, imageUploadState.file)
+          imageUrl = public_url
+          
+          setImageUploadState(prev => ({ ...prev, uploading: false }))
+        } catch (error) {
+          setImageUploadState(prev => ({ ...prev, uploading: false }))
+          toast({
+            title: "Upload failed",
+            description: error instanceof Error ? error.message : "Failed to upload image",
+            variant: "destructive",
+          })
+          setSubmitting(false)
+          return
+        }
       }
 
       const mealData = {
@@ -231,16 +397,29 @@ export default function OwnerDashboard() {
         surplus_price: formData.surplus_price ? parseFloat(formData.surplus_price) : undefined,
         allergens: formData.allergens ? formData.allergens.split(",").map(a => a.trim()).filter(a => a) : undefined,
         calories: formData.calories ? parseInt(formData.calories) : undefined,
-        image_link: formData.image_link || undefined,
+        image_link: imageUrl,
       }
 
       await createMeal(mealData)
+      
+      // Clean up preview URL
+      if (imageUploadState.previewUrl) {
+        URL.revokeObjectURL(imageUploadState.previewUrl)
+      }
+      
       toast({
         title: "Success",
         description: "Meal added successfully",
       })
+      
       setIsAddDialogOpen(false)
       setFormData(initialFormData)
+      setImageUploadState({
+        file: null,
+        uploading: false,
+        uploadedUrl: null,
+        previewUrl: null,
+      })
       loadMeals()
     } catch (error) {
       toast({
@@ -282,8 +461,57 @@ export default function OwnerDashboard() {
       if (formData.calories !== undefined) {
         updateData.calories = formData.calories ? parseInt(formData.calories) : null
       }
-      if (formData.image_link !== undefined) {
-        updateData.image_link = formData.image_link || null
+      
+      // Handle image changes
+      let newImageUrl: string | null = null
+      const fileToUpload = imageUploadState.file
+      const imageRemoved = !formData.image_link && !fileToUpload
+      
+      if (fileToUpload) {
+        // Upload new image to CDN
+        try {
+          setImageUploadState(prev => ({ ...prev, uploading: true }))
+          
+          const { upload_url, public_url } = await getPresignedUploadUrl(
+            fileToUpload.name,
+            fileToUpload.type
+          )
+          
+          await uploadFileToS3(upload_url, fileToUpload)
+          newImageUrl = public_url
+          
+          setImageUploadState(prev => ({ ...prev, uploading: false }))
+        } catch (error) {
+          setImageUploadState(prev => ({ ...prev, uploading: false }))
+          toast({
+            title: "Upload failed",
+            description: error instanceof Error ? error.message : "Failed to upload image",
+            variant: "destructive",
+          })
+          setSubmitting(false)
+          return
+        }
+        
+        updateData.image_link = newImageUrl
+        
+        // Delete old image from CDN if it exists
+        if (originalImageUrl) {
+          try {
+            await deleteImageFromS3(originalImageUrl)
+          } catch (error) {
+            console.error("Failed to delete old image:", error)
+          }
+        }
+      } else if (imageRemoved && originalImageUrl) {
+        // User removed the image
+        updateData.image_link = null
+        
+        // Delete old image from CDN
+        try {
+          await deleteImageFromS3(originalImageUrl)
+        } catch (error) {
+          console.error("Failed to delete old image:", error)
+        }
       }
 
       if (Object.keys(updateData).length === 0) {
@@ -291,17 +519,32 @@ export default function OwnerDashboard() {
           title: "No Changes",
           description: "No fields were modified",
         })
+        setSubmitting(false)
         return
       }
 
       await updateMeal(selectedMeal.id, updateData)
+      
+      // Clean up preview URL
+      if (imageUploadState.previewUrl) {
+        URL.revokeObjectURL(imageUploadState.previewUrl)
+      }
+      
       toast({
         title: "Success",
         description: "Meal updated successfully",
       })
+      
       setIsEditDialogOpen(false)
       setSelectedMeal(null)
       setFormData(initialFormData)
+      setImageUploadState({
+        file: null,
+        uploading: false,
+        uploadedUrl: null,
+        previewUrl: null,
+      })
+      setOriginalImageUrl(null)
       loadMeals()
     } catch (error) {
       toast({
@@ -319,6 +562,17 @@ export default function OwnerDashboard() {
 
     try {
       setSubmitting(true)
+      
+      // Delete the image from S3 if it exists
+      if (selectedMeal.image_link) {
+        try {
+          await deleteImageFromS3(selectedMeal.image_link)
+        } catch (error) {
+          console.error("Failed to delete image:", error)
+          // Continue with meal deletion even if image deletion fails
+        }
+      }
+      
       await deleteMeal(selectedMeal.id)
       toast({
         title: "Success",
@@ -340,6 +594,7 @@ export default function OwnerDashboard() {
 
   const openEditDialog = (meal: Meal) => {
     setSelectedMeal(meal)
+    setOriginalImageUrl(meal.image_link || null)
     setFormData({
       name: meal.name,
       tags: meal.tags?.join(", ") || "",
@@ -349,6 +604,12 @@ export default function OwnerDashboard() {
       allergens: meal.allergens?.join(", ") || "",
       calories: meal.calories?.toString() || "",
       image_link: meal.image_link || "",
+    })
+    setImageUploadState({
+      file: null,
+      uploading: false,
+      uploadedUrl: null,
+      previewUrl: null,
     })
     setIsEditDialogOpen(true)
   }
@@ -363,13 +624,31 @@ export default function OwnerDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Restaurant Dashboard</h1>
-          <p className="text-muted-foreground">Manage your surplus inventory</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {restaurantName ? restaurantName : "Restaurant Dashboard"}
+          </h1>
+          {restaurantAddress && (
+            <p className="text-muted-foreground">{restaurantAddress}</p>
+          )}
+          <p className="text-sm text-muted-foreground">Manage your surplus inventory</p>
         </div>
         
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+          if (!open) {
+            cleanupDialog()
+          }
+          setIsAddDialogOpen(open)
+        }}>
           <DialogTrigger asChild>
-            <Button className="gap-2" onClick={() => setFormData(initialFormData)}>
+            <Button className="gap-2" onClick={() => {
+              setFormData(initialFormData)
+              setImageUploadState({
+                file: null,
+                uploading: false,
+                uploadedUrl: null,
+                previewUrl: null,
+              })
+            }}>
               <Plus className="h-4 w-4" />
               Add Meal
             </Button>
@@ -379,13 +658,25 @@ export default function OwnerDashboard() {
               <DialogTitle>Add New Meal</DialogTitle>
               <DialogDescription>Add a new meal to your restaurant's menu</DialogDescription>
             </DialogHeader>
-            <MealForm formData={formData} setFormData={setFormData} />
+            <MealForm 
+              formData={formData} 
+              setFormData={setFormData} 
+              imageUploadState={imageUploadState}
+              onImageSelect={handleImageSelect}
+              onImageRemove={handleImageRemove}
+            />
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              <Button variant="outline" onClick={() => {
+                cleanupDialog()
+                setIsAddDialogOpen(false)
+              }}>
                 Cancel
               </Button>
-              <Button onClick={handleAddMeal} disabled={submitting}>
-                {submitting ? "Adding..." : "Add Meal"}
+              <Button 
+                onClick={handleAddMeal} 
+                disabled={submitting || imageUploadState.uploading}
+              >
+                {submitting ? "Adding..." : imageUploadState.uploading ? "Uploading..." : "Add Meal"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -498,19 +789,36 @@ export default function OwnerDashboard() {
       </Card>
 
       {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          cleanupDialog()
+        }
+        setIsEditDialogOpen(open)
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Meal</DialogTitle>
             <DialogDescription>Update meal information</DialogDescription>
           </DialogHeader>
-          <MealForm formData={formData} setFormData={setFormData} />
+          <MealForm 
+            formData={formData} 
+            setFormData={setFormData}
+            imageUploadState={imageUploadState}
+            onImageSelect={handleImageSelect}
+            onImageRemove={handleImageRemove}
+          />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              cleanupDialog()
+              setIsEditDialogOpen(false)
+            }}>
               Cancel
             </Button>
-            <Button onClick={handleEditMeal} disabled={submitting}>
-              {submitting ? "Updating..." : "Update Meal"}
+            <Button 
+              onClick={handleEditMeal} 
+              disabled={submitting || imageUploadState.uploading}
+            >
+              {submitting ? "Updating..." : imageUploadState.uploading ? "Uploading..." : "Update Meal"}
             </Button>
           </DialogFooter>
         </DialogContent>

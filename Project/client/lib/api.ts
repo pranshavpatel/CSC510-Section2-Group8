@@ -353,6 +353,19 @@ export async function deleteAccount() {
 // ==================== OWNER MEALS API ====================
 
 /**
+ * Get restaurant details for the owner
+ */
+export async function getMyRestaurant() {
+  const response = await authenticatedFetch(`${API_BASE_URL}/owner/restaurant`)
+  
+  if (!response.ok) {
+    throw new Error("Failed to fetch restaurant details")
+  }
+  
+  return response.json()
+}
+
+/**
  * Get all meals for the owner's restaurant
  */
 export async function getOwnerMeals() {
@@ -427,5 +440,60 @@ export async function deleteMeal(mealId: string) {
   }
   
   return true
+}
+
+// ==================== S3 / CDN API ====================
+
+/**
+ * Get presigned URL for uploading an image
+ */
+export async function getPresignedUploadUrl(filename: string, contentType: string) {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/s3/presigned-upload-url`, {
+    method: "POST",
+    body: JSON.stringify({ filename, content_type: contentType }),
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || "Failed to get presigned URL")
+  }
+  
+  return response.json() as Promise<{ upload_url: string; public_url: string }>
+}
+
+/**
+ * Upload file to S3 using presigned URL
+ */
+export async function uploadFileToS3(presignedUrl: string, file: File) {
+  const response = await fetch(presignedUrl, {
+    method: "PUT",
+    body: file,
+    headers: {
+      "Content-Type": file.type,
+    },
+  })
+  
+  if (!response.ok) {
+    throw new Error("Failed to upload file to S3")
+  }
+  
+  return true
+}
+
+/**
+ * Delete an image from S3
+ */
+export async function deleteImageFromS3(imageUrl: string) {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/s3/delete-image`, {
+    method: "DELETE",
+    body: JSON.stringify({ image_url: imageUrl }),
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || "Failed to delete image")
+  }
+  
+  return response.json()
 }
 
